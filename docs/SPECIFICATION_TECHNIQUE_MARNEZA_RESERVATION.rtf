@@ -1,0 +1,243 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Calibri;}{\f1 Consolas;}}
+\fs22
+\b SPECIFICATION TECHNIQUE FORMELLE\par
+\b0
+Application : Marneza Reservation\par
+Version : 1.0\par
+Date : 07/07/2026\par
+\par
+\b 1. OBJET DU DOCUMENT\par
+\b0
+Ce document d\'e9crit l\'architecture technique de l\'application de r\'e9servation Marneza, les routes front-end et API, les d\'e9pendances entre modules, la structure de base de donn\'e9es, les flux m\'e9tier et les pr\'e9requis de d\'e9ploiement.\par
+\par
+\b 2. PERIMETRE FONCTIONNEL\par
+\b0
+2.1 Fonctions couvertes\par
+- Consultation des ressources r\'e9servables (salles, appartement)\par
+- Choix du type de location et de la date\par
+- V\'e9rification de disponibilit\'e9 en temps r\'e9el\par
+- Calcul tarifaire avec promotions\par
+- Cr\'e9ation de r\'e9servation en statut pending (hold temporaire)\par
+- Confirmation/annulation via interface administration\par
+- Gestion admin des tarifs et promotions\par
+\par
+2.2 Hors p\'e9rim\'e8tre imm\'e9diat\par
+- Paiement en ligne final (structure pr\'e9vue, branchement fournisseur en phase suivante)\par
+- Automatisation compl\'e8te de facturation externe\par
+\par
+\b 3. STACK TECHNIQUE\par
+\b0
+3.1 Front-end\par
+- Next.js 15\par
+- React 19\par
+- TypeScript\par
+\par
+3.2 Back-end\par
+- Node.js\par
+- Express\par
+- Prisma ORM\par
+\par
+3.3 Donn\'e9es et services\par
+- PostgreSQL (base relationnelle principale)\par
+- Redis (support jobs/queue)\par
+\par
+3.4 S\'e9curit\'e9 / Infrastructure\par
+- JWT pour authentification admin\par
+- Bcrypt pour hash de mots de passe\par
+- Helmet pour en-t\'eates HTTP\par
+- CORS contr\'f4l\'e9 par liste blanche\par
+\par
+\b 4. ARCHITECTURE LOGIQUE\par
+\b0
+4.1 Mod\'e8le d\'e9cution\par
+Pattern appliqu\'e9 : Route -> Controller -> Service -> Prisma -> PostgreSQL.\par
+\par
+4.2 Cha\'eene d\'appel front vers API\par
+Pages Next.js -> composants m\'e9tier -> \f1 lib/api-client.ts\f0  -> endpoints \f1 /api/*\f0  -> controllers -> services -> base.\par
+\par
+4.3 Distribution des responsabilit\'e9s\par
+- Front : UX, formulaires, navigation, affichage disponibilit\'e9/prix\par
+- API : r\'e8gles m\'e9tier, conflits de cr\'e9neaux, calculs, autorisations\par
+- Base : persistance transactionnelle et historique\par
+\par
+\b 5. ROUTES FRONT-END (NEXT.JS)\par
+\b0
+5.1 Public\par
+- \f1 /\f0  : accueil\par
+- \f1 /book/[slug]\f0  : r\'e9servation ressource\par
+- \f1 /book/[slug]/confirm/[id]\f0  : confirmation r\'e9servation\par
+\par
+5.2 Administration\par
+- \f1 /admin/login\f0  : authentification admin\par
+- \f1 /admin\f0  : tableau de bord r\'e9servations\par
+- \f1 /admin/calendar\f0  : calendrier d\'e9taill\'e9\par
+- \f1 /admin/pricing\f0  : gestion des prix/promotions\par
+\par
+\b 6. ROUTES API\par
+\b0
+Pr\'e9fixe global : \f1 /api\f0\par
+\par
+6.1 Public\par
+- \f1 POST /api/auth/login\f0  : connexion admin\par
+- \f1 GET /api/resources\f0  : liste des ressources actives\par
+- \f1 GET /api/resources/:slug\f0  : d\'e9tail ressource\par
+- \f1 GET /api/resources/:slug/availability\f0  : disponibilit\'e9\par
+- \f1 GET /api/pricing/quote\f0  : devis tarifaire\par
+- \f1 POST /api/bookings\f0  : cr\'e9ation r\'e9servation\par
+- \f1 GET /api/bookings/:id\f0  : d\'e9tail r\'e9servation\par
+- \f1 POST /api/bookings/:id/cancel\f0  : annulation\par
+- \f1 GET /api/health\f0  : sant\'e9 service\par
+\par
+6.2 Administration (JWT requis)\par
+- \f1 GET /api/auth/me\f0  : session admin courante\par
+- \f1 GET /api/admin/bookings\f0\par
+- \f1 GET /api/admin/bookings/:id\f0\par
+- \f1 POST /api/admin/bookings/:id/confirm\f0\par
+- \f1 POST /api/admin/bookings/:id/cancel\f0\par
+- \f1 GET /api/admin/calendar\f0\par
+- \f1 GET /api/admin/stats\f0\par
+- \f1 GET /api/admin/pricing\f0\par
+- \f1 PATCH /api/admin/pricing/:id\f0\par
+\par
+\b 7. MATRICE D\'92APPELS (QUI APPELLE QUOI)\par
+\b0
+7.1 C\'f4t\'e9 front\par
+- \f1 BookingWizard.tsx\f0  appelle :\par
+  * \f1 getQuote()\f0  -> \f1 GET /api/pricing/quote\f0\par
+  * \f1 getAvailability()\f0  (via calendrier) -> \f1 GET /api/resources/:slug/availability\f0\par
+  * \f1 createBooking()\f0  -> \f1 POST /api/bookings\f0\par
+\par
+- \f1 ConfirmClient\f0  appelle :\par
+  * \f1 getBooking(id)\f0  -> \f1 GET /api/bookings/:id\f0\par
+\par
+- Modules admin appellent :\par
+  * \f1 adminListBookings/adminConfirmBooking/adminCancelBooking\f0\par
+  * \f1 adminGetCalendar\f0\par
+  * \f1 adminListPricing/adminUpdatePricing\f0\par
+\par
+7.2 C\'f4t\'e9 API\par
+- \f1 routes/index.js\f0  monte toutes les routes\par
+- Controllers redirigent vers services m\'e9tier\par
+- Services utilisent Prisma (\f1 config/database\f0)\par
+\par
+7.3 Jobs\par
+- \f1 expire-pending.job\f0  (toutes les 2 min) : pending expir\'e9 -> cancelled\par
+- \f1 sync-odoo.job\f0  : lanc\'e9 apr\'e8s confirmation admin si activ\'e9\par
+\par
+\b 8. FLUX METIER DETAILLES\par
+\b0
+8.1 Flux de cr\'e9ation d\'une r\'e9servation\par
+1) Chargement ressource\par
+2) Choix type/date\par
+3) Contr\'f4le disponibilit\'e9\par
+4) Calcul tarif\par
+5) Cr\'e9ation booking pending + expiresAt\par
+6) Redirection confirmation\par
+\par
+8.2 Flux d\'92expiration de hold\par
+1) Job planifi\'e9\par
+2) Recherche des pending expir\'e9s\par
+3) Mise \'e0 jour statut cancelled\par
+\par
+8.3 Flux de confirmation admin\par
+1) Admin authentifi\'e9\par
+2) Action confirm\par
+3) \f1 bookingService.confirm\f0\par
+4) D\'e9clenchement sync externe (si activ\'e9)\par
+\par
+\b 9. SCHEMA BASE DE DONNEES (NIVEAU FONCTIONNEL)\par
+\b0
+9.1 Entit\'e9s principales\par
+- \f1 resource_types\f0  : cat\'e9gories de ressources\par
+- \f1 resources\f0  : ressources r\'e9servables\par
+- \f1 booking_types\f0  : modes de location\par
+- \f1 pricing_rules\f0  : prix, promo, p\'e9riodes\par
+- \f1 customers\f0  : clients\par
+- \f1 bookings\f0  : r\'e9servations\par
+- \f1 blocked_periods\f0  : indisponibilit\'e9s\par
+\par
+9.2 Administration/s\'e9curit\'e9\par
+- \f1 users\f0, \f1 roles\f0, \f1 user_roles\f0\par
+\par
+9.3 Int\'e9gration et extension\par
+- \f1 products\f0, \f1 product_resource_map\f0, \f1 odoo_sync_log\f0\par
+- \f1 payments\f0  (pr\'e9vu pour l\'92int\'e9gration paiement)\par
+\par
+9.4 Contraintes notables\par
+- Unicit\'e9 \f1 pricing_rules(resourceId, bookingTypeId)\f0\par
+- Index temporels sur \f1 bookings\f0  et \f1 blocked_periods\f0\par
+- Etats booking : draft, pending, confirmed, cancelled, completed\par
+\par
+\b 10. SECURITE APPLICATIVE\par
+\b0
+10.1 M\'e9canismes actifs\par
+- Auth admin par JWT\par
+- Hash mot de passe bcrypt\par
+- Protection routes admin par middleware auth\par
+- Helmet + CORS\par
+\par
+10.2 Param\'e8tres obligatoires production\par
+- \f1 NODE_ENV=production\f0\par
+- \f1 REQUIRE_AUTH=true\f0\par
+- \f1 JWT_SECRET\f0  fort\par
+- Mot de passe admin fort\par
+- Origines CORS limit\'e9es\par
+\par
+\b 11. VARIABLES D\'92ENVIRONNEMENT CRITIQUES\par
+\b0
+- \f1 APP_URL\f0, \f1 API_URL\f0, \f1 NEXT_PUBLIC_API_URL\f0\par
+- \f1 DATABASE_URL\f0\par
+- \f1 REDIS_URL\f0\par
+- \f1 BOOKING_HOLD_MINUTES\f0\par
+- \f1 JWT_SECRET\f0, \f1 JWT_EXPIRES_IN\f0, \f1 REQUIRE_AUTH\f0\par
+- \f1 ADMIN_EMAIL\f0, \f1 ADMIN_PASSWORD\f0\par
+- \f1 ODOO_URL\f0, \f1 ODOO_DB\f0, \f1 ODOO_USERNAME\f0, \f1 ODOO_API_KEY\f0, \f1 ODOO_SYNC_ENABLED\f0\par
+- \f1 CORS_ORIGINS\f0\par
+\par
+\b 12. DEPLOIEMENT - PRE REQUIS\par
+\b0
+12.1 Pr\'e9requis techniques\par
+- Base PostgreSQL production disponible\par
+- Variables environnement inject\'e9es\par
+- HTTPS actif sur domaine\par
+- DNS du sous-domaine r\'e9servation point\'e9 vers l\'92infrastructure\par
+\par
+12.2 S\'e9quence recommand\'e9e\par
+1) Migrations Prisma\par
+2) Seed initial\par
+3) D\'e9marrage API\par
+4) Build et d\'e9marrage front\par
+5) Tests E2E fonctionnels\par
+6) Activation des liens boutique vers app\par
+\par
+\b 13. ETAT D\'92AVANCEMENT\par
+\b0
+13.1 D\'e9j\'e0 op\'e9rationnel\par
+- Moteur de disponibilit\'e9\par
+- R\'e9servation + hold\par
+- Admin login + dashboards\par
+- Tarifs dynamiques + promotions\par
+\par
+13.2 A finaliser selon roadmap\par
+- Int\'e9gration paiement en ligne compl\'e8te\par
+- Industrialisation d\'e9ploiement production\par
+- Param\'e9trage final des liens boutique\par
+\par
+\b 14. ANNEXE - CARTOGRAPHIE RAPIDE DES MODULES\par
+\b0
+Back-end principal :\par
+- \f1 src/routes/*.js\f0\par
+- \f1 src/controllers/*.js\f0\par
+- \f1 src/services/*.js\f0\par
+- \f1 src/jobs/*.js\f0\par
+\par
+Front-end principal :\par
+- \f1 src/app/**/page.tsx\f0\par
+- \f1 src/components/booking/*\f0\par
+- \f1 src/components/admin/*\f0\par
+- \f1 src/lib/api-client.ts\f0\par
+\par
+\b Fin du document\par
+\b0
+}

@@ -1,0 +1,490 @@
+// Marneza Reservation — Schéma MySQL (XAMPP / MariaDB)
+// Documentation : docs/DATABASE.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ─────────────────────────────────────────────────────
+
+enum CustomerCategory {
+  personnel
+  entreprise
+}
+
+enum BookingStatus {
+  created
+  processing
+  paid
+  fulfilled
+  cancelled
+  refused
+}
+
+enum EventType {
+  wedding
+  party
+  ceremony
+  conference
+  other
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum SyncStatus {
+  pending
+  success
+  failed
+}
+
+// ─── Types de ressources (hall, conference, apartment) ─────────
+
+model ResourceType {
+  id           String        @id @default(uuid())
+  code         String        @unique // hall | conference | apartment
+  name         String
+  resources    Resource[]
+  bookingTypes BookingType[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("resource_types")
+}
+
+// ─── Espaces réservables ───────────────────────────────────────
+
+model Resource {
+  id             String          @id @default(uuid())
+  resourceTypeId String
+  resourceType   ResourceType    @relation(fields: [resourceTypeId], references: [id])
+  name           String
+  slug           String          @unique // espace-polyvalent | salle-conference | appartement
+  description    String?
+  capacity       Int?
+  isActive       Boolean         @default(true)
+  odooProductId  Int?
+  timezone       String          @default("Africa/Kinshasa")
+  bookings       Booking[]
+  pricingRules   PricingRule[]
+  blockedPeriods BlockedPeriod[]
+  media          Media[]
+  productMaps    ProductResourceMap[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([resourceTypeId])
+  @@map("resources")
+}
+
+// ─── Types de location (heure, journée, soirée, etc.) ────────
+
+model BookingType {
+  id               String        @id @default(uuid())
+  code             String        @unique
+  name             String
+  resourceTypeId   String
+  resourceType     ResourceType  @relation(fields: [resourceTypeId], references: [id])
+  defaultStartTime String        // "08:00" format HH:mm
+  defaultEndTime   String        // "15:00" ou "07:00" si overnight
+  spansOvernight   Boolean       @default(false)
+  pricingRules     PricingRule[]
+  bookings         Booking[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([resourceTypeId])
+  @@map("booking_types")
+}
+
+// ─── Clients ───────────────────────────────────────────────────
+
+model Customer {
+  id            String    @id @default(uuid())
+  email         String
+  phone         String?
+  firstName     String
+  lastName      String
+  odooPartnerId Int?
+  bookings      Booking[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([email])
+  @@map("customers")
+}
+
+// ─── Réservations (cœur métier) ──────────────────────────────
+
+model Booking {
+  id              String              @id @default(uuid())
+  resourceId      String
+  resource        Resource            @relation(fields: [resourceId], references: [id])
+  customerId      String
+  customer        Customer            @relation(fields: [customerId], references: [id])
+  bookingTypeId   String
+  bookingType     BookingType         @relation(fields: [bookingTypeId], references: [id])
+  eventType       EventType
+  startAt         DateTime
+  endAt           DateTime
+  status          BookingStatus       @default(created)
+  expiresAt       DateTime? // created : now + 15 min
+  customerCategory CustomerCategory   @default(personnel)
+  companyName     String?
+  quotedAmount    Decimal?            @db.Decimal(10, 2) // tarif initial
+  priceNote       String?             // note admin sur ajustement
+  totalAmount     Decimal             @db.Decimal(10, 2)
+  currency        String              @default("USD")
+  notes           String?
+  termsAcceptedAt DateTime?
+  invoiceSentAt   DateTime?
+  paymentClaimedAt DateTime?
+  reminded3DaysAt DateTime?
+  reminded1DayAt  DateTime?
+  remindedTodayAt DateTime?
+  referenceNumber String?             @unique // JJ-MM-AAAA-NNNN-XXXX
+  promoCodeId     String?
+  promoCode       PromoCode?          @relation(fields: [promoCodeId], references: [id])
+  promoDiscount   Decimal?            @db.Decimal(10, 2)
+  accessToken     String              @unique
+  accessTokenExpiresAt DateTime?
+  includesApartment Boolean             @default(false) // option +50$ avec salle
+  odooSaleOrderId Int?
+  optionLines     BookingOptionLine[]
+  feeLines        BookingFeeLine[]
+  payments        Payment[]
+  syncLogs        OdooSyncLog[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([resourceId, startAt, endAt])
+  @@index([status, expiresAt])
+  @@index([customerId])
+  @@map("bookings")
+}
+
+// ─── Tarification ──────────────────────────────────────────────
+
+model PricingRule {
+  id               String      @id @default(uuid())
+  resourceId       String
+  resource         Resource    @relation(fields: [resourceId], references: [id])
+  bookingTypeId    String
+  bookingType      BookingType @relation(fields: [bookingTypeId], references: [id])
+  amount           Decimal     @db.Decimal(10, 2) // legacy = amountPersonnel
+  amountPersonnel  Decimal?    @db.Decimal(10, 2)
+  amountEntreprise Decimal?    @db.Decimal(10, 2)
+  compareAtAmount  Decimal?    @db.Decimal(10, 2) // prix barré vitrine / promo
+  promoLabel       String?
+  currency         String      @default("USD")
+  validFrom        DateTime?   @db.Date
+  validTo          DateTime?   @db.Date
+  isActive         Boolean     @default(true)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([resourceId, bookingTypeId])
+  @@map("pricing_rules")
+}
+
+// ─── Périodes bloquées (maintenance, fermeture) ───────────────
+
+model BlockedPeriod {
+  id         String   @id @default(uuid())
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id])
+  startAt    DateTime
+  endAt      DateTime
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([resourceId, startAt, endAt])
+  @@map("blocked_periods")
+}
+
+// ─── Options réservation (déco, vaisselle…) ────────────────────
+
+model BookingOption {
+  id          String              @id @default(uuid())
+  code        String              @unique
+  name        String
+  description String?
+  amount      Decimal             @db.Decimal(10, 2)
+  currency    String              @default("USD")
+  isActive    Boolean             @default(true)
+  lines       BookingOptionLine[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@map("booking_options")
+}
+
+model BookingOptionLine {
+  id              String        @id @default(uuid())
+  bookingId       String
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingOptionId String
+  bookingOption   BookingOption @relation(fields: [bookingOptionId], references: [id])
+  quantity        Int           @default(1)
+  unitAmount      Decimal       @db.Decimal(10, 2)
+  createdAt       DateTime      @default(now())
+
+  @@map("booking_option_lines")
+}
+
+// Frais additionnels (modification, options, suppléments facture)
+model BookingFeeLine {
+  id        String   @id @default(uuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  label     String
+  amount    Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
+  @@map("booking_fee_lines")
+}
+
+// ─── Paiements (phase 2) ─────────────────────────────────────
+
+model Payment {
+  id                String        @id @default(uuid())
+  bookingId         String
+  booking           Booking       @relation(fields: [bookingId], references: [id])
+  amount            Decimal       @db.Decimal(10, 2)
+  currency          String        @default("USD")
+  status            PaymentStatus @default(pending)
+  provider          String?
+  externalReference String?
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([bookingId])
+  @@map("payments")
+}
+
+// ─── Médias (photos par ressource) ─────────────────────────────
+
+model Media {
+  id         String   @id @default(uuid())
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  url        String
+  altText    String?
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([resourceId])
+  @@map("media")
+}
+
+// ─── Sync Odoo ─────────────────────────────────────────────────
+
+model Product {
+  id              String               @id @default(uuid())
+  odooProductId   Int                  @unique
+  name            String
+  sku             String?
+  resourceMaps    ProductResourceMap[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@map("products")
+}
+
+model ProductResourceMap {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id])
+
+  @@unique([productId, resourceId])
+  @@map("product_resource_map")
+}
+
+model OdooSyncLog {
+  id           String     @id @default(uuid())
+  bookingId    String?
+  booking      Booking?   @relation(fields: [bookingId], references: [id])
+  entityType   String // booking | customer | payment
+  entityId     String
+  status       SyncStatus
+  requestData  Json?
+  responseData Json?
+  errorMessage String?
+  createdAt    DateTime   @default(now())
+
+  @@index([bookingId])
+  @@index([status])
+  @@map("odoo_sync_log")
+}
+
+// ─── Utilisateurs admin ────────────────────────────────────────
+
+model Role {
+  id        String     @id @default(uuid())
+  code      String     @unique // admin | manager | staff
+  name      String
+  userRoles UserRole[]
+  createdAt DateTime   @default(now())
+
+  @@map("roles")
+}
+
+model User {
+  id            String             @id @default(uuid())
+  email         String             @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  isActive      Boolean            @default(true)
+  userRoles     UserRole[]
+  recoveryCodes AuthRecoveryCode[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@map("users")
+}
+
+/// Codes à usage unique pour reset mdp / rappel d'identifiant (TTL 15 min)
+model AuthRecoveryCode {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String // password_reset | identifier_hint
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, purpose])
+  @@map("auth_recovery_codes")
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+// ─── Audit & configuration ─────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+// ─── Références journalières (JJ-MM-AAAA-NNNN-XXXX) ───────────
+
+model ReferenceSequence {
+  dateKey String @id // dd-mm-yyyy
+  counter Int    @default(0)
+
+  @@map("reference_sequences")
+}
+
+// ─── Codes promo ───────────────────────────────────────────────
+
+model PromoCode {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  discountAmount Decimal   @db.Decimal(10, 2)
+  currency       String    @default("USD")
+  validFrom      DateTime?
+  validTo        DateTime?
+  maxUses        Int?
+  usedCount      Int       @default(0)
+  isActive       Boolean   @default(true)
+  label          String?
+  bookings       Booking[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("promo_codes")
+}
+
+// ─── Templates email / textes admin ────────────────────────────
+
+model EmailTemplate {
+  id            String           @id @default(uuid())
+  code          String           @unique // reservation_summary, reminder_j3, synthesis_email
+  name          String
+  subject       String
+  bodyHtml      String           @db.Text
+  bodyText      String?          @db.Text
+  useRichEditor Boolean          @default(true)
+  isActive      Boolean          @default(true)
+  reminderConfigs ReminderConfig[]
+  updatedAt     DateTime         @updatedAt
+  createdAt     DateTime         @default(now())
+
+  @@map("email_templates")
+}
+
+// ─── Profils de synthèse / rappels configurables ───────────────
+
+model ReminderConfig {
+  id              String         @id @default(uuid())
+  name            String
+  horizonMonths   Int            @default(0) // 0=mois en cours, 3, 6, 12
+  statuses        Json           // ["paid","processing"]
+  resourceIds     Json?          // null = tous les espaces
+  showInDashboard Boolean        @default(true)
+  emailEnabled    Boolean        @default(false)
+  templateId      String?
+  template        EmailTemplate? @relation(fields: [templateId], references: [id])
+  sortOrder       Int            @default(0)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("reminder_configs")
+}
+
+// ─── Conditions de location (éditables admin) ──────────────────
+
+model RentalTerm {
+  id        String   @id @default(uuid())
+  body      String   @db.Text
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@map("rental_terms")
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@marneza/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API de réservation Marneza",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- node --watch-path=./src src/index.js",
+    "start": "dotenv -e ../../.env -- node src/index.js",
+    "db:migrate": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
+    "db:migrate:prod": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:seed": "dotenv -e ../../.env -- node prisma/seed.js",
+    "db:studio": "dotenv -e ../../.env -- prisma studio",
+    "db:generate": "dotenv -e ../../.env -- prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.5.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "mailtrap": "^4.6.1",
+    "nodemailer": "^9.0.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^8.0.0",
+    "prisma": "^6.5.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "marneza-reservation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Application de réservation Marneza — salles et appartements",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "db:migrate": "npm run db:migrate -w apps/api --",
+    "db:migrate:dev": "npm run db:migrate:dev -w apps/api",
+    "db:setup:xampp": "npm run db:generate && npm run db:migrate && npm run db:seed",
+    "db:seed": "npm run db:seed -w apps/api",
+    "db:studio": "npm run db:studio -w apps/api",
+    "db:generate": "npm run db:generate -w apps/api"
+  },
+  "dependencies": {
+    "mailtrap": "^4.6.1"
+  }
+}
