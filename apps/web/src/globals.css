@@ -1858,6 +1858,12 @@ a:hover {
   margin-top: 0.75rem;
 }
 
+.payment-proof-card__optional {
+  font-weight: 400;
+  font-size: 0.85em;
+  color: var(--marneza-muted);
+}
+
 .payment-proof-card__current {
   margin: 0.5rem 0;
   font-size: 0.9rem;

@@ -455,7 +455,7 @@ async function sendClientPaymentClaimedAckEmail(booking) {
     'Nous avons bien enregistré votre signalement de paiement.',
     booking.paymentProofPath
       ? 'Votre preuve de paiement a bien été reçue.'
-      : 'Vous pouvez encore ajouter une preuve (capture ou PDF) depuis votre page de suivi.',
+      : 'Astuce : la prochaine fois, vous pouvez joindre une capture ou un PDF depuis votre page de suivi (recommandé).',
     '',
     'Notre équipe vérifie la réception sur le compte. Vous recevrez un email dès que le paiement sera confirmé.',
     '',
@@ -475,7 +475,7 @@ async function sendClientPaymentClaimedAckEmail(booking) {
     ${
       booking.paymentProofPath
         ? '<p>Votre <strong>preuve de paiement</strong> a bien été reçue.</p>'
-        : '<p>Vous pouvez encore ajouter une preuve (capture ou PDF) depuis votre page de suivi.</p>'
+        : '<p>Astuce : joindre une capture ou un PDF lors du signalement facilite la vérification (recommandé).</p>'
     }
     <p>Notre équipe vérifie la réception. Vous recevrez un email dès confirmation.</p>
     <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>

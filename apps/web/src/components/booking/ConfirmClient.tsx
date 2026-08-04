@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import type { Booking, RentalTerm } from '@/types/api';
-import { cancelBooking, claimPayment, getBooking, getRentalTerms, submitBooking, uploadPaymentProof } from '@/lib/api-client';
+import { cancelBooking, claimPayment, getBooking, getRentalTerms, submitBooking } from '@/lib/api-client';
 import { saveBookingToken } from '@/lib/booking-access';
 import {
   clientStatusMessage,
@@ -138,37 +138,20 @@ export function ConfirmClient({ bookingId }: Props) {
     }
   }
 
-  async function handleUploadProof() {
-    if (!proofFile) {
-      setError('Choisissez un fichier PDF ou une image (capture).');
-      return;
-    }
-    setActionLoading('proof');
+  async function handleClaimPayment() {
+    const attachedProof = proofFile;
+    setActionLoading('claim');
     setError(null);
     setProofMsg(null);
     try {
-      const data = await uploadPaymentProof(bookingId, proofFile);
+      const data = await claimPayment(bookingId, attachedProof);
       setBooking(data);
       setProofFile(null);
-      setProofMsg('Preuve envoyée — merci.');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload impossible');
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function handleClaimPayment() {
-    setActionLoading('claim');
-    setError(null);
-    try {
-      if (proofFile) {
-        await uploadPaymentProof(bookingId, proofFile);
-        setProofFile(null);
-      }
-      const data = await claimPayment(bookingId);
-      setBooking(data);
-      setProofMsg('Paiement signalé — un email de confirmation vous a été envoyé.');
+      setProofMsg(
+        attachedProof
+          ? 'Paiement signalé avec preuve — un email de confirmation vous a été envoyé.'
+          : 'Paiement signalé — un email de confirmation vous a été envoyé.'
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur');
     } finally {
@@ -277,41 +260,36 @@ export function ConfirmClient({ bookingId }: Props) {
         </div>
       )}
 
-      {booking.status === 'processing' && booking.invoiceSentAt && (
+      {booking.status === 'processing' && booking.invoiceSentAt && !booking.paymentClaimedAt && (
         <div className="card payment-proof-card">
-          <h2>Preuve de paiement</h2>
+          <h2>Preuve de paiement <span className="payment-proof-card__optional">(recommandée)</span></h2>
           <p className="page-subtitle" style={{ marginTop: 0 }}>
-            Joignez une capture d&apos;écran ou un PDF de votre virement / mobile money (max 8&nbsp;Mo).
+            Chargez une capture ou un PDF de votre virement / mobile money (max 8&nbsp;Mo),
+            puis cliquez sur «&nbsp;J&apos;ai effectué le paiement&nbsp;». Ce n&apos;est pas obligatoire.
           </p>
+          <div className="payment-proof-card__row">
+            <input
+              type="file"
+              accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
+              onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+            />
+            {proofFile && (
+              <span className="payment-proof-card__current">
+                Fichier prêt : <strong>{proofFile.name}</strong>
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {(booking.paymentClaimedAt || booking.paymentProofName) && booking.status === 'processing' && (
+        <div className="card payment-proof-card">
+          {proofMsg && <div className="success-banner">{proofMsg}</div>}
           {booking.paymentProofName && (
             <p className="payment-proof-card__current">
-              Fichier reçu : <strong>{booking.paymentProofName}</strong>
-              {booking.paymentProofUploadedAt && (
-                <>
-                  {' '}
-                  — {new Date(booking.paymentProofUploadedAt).toLocaleString('fr-FR')}
-                </>
-              )}
+              Preuve jointe : <strong>{booking.paymentProofName}</strong>
             </p>
           )}
-          {!booking.paymentClaimedAt || !booking.paymentProofName ? (
-            <div className="payment-proof-card__row">
-              <input
-                type="file"
-                accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
-                onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
-              />
-              <button
-                type="button"
-                className="btn btn-outline"
-                disabled={actionLoading !== null || !proofFile}
-                onClick={handleUploadProof}
-              >
-                {actionLoading === 'proof' ? 'Envoi…' : 'Envoyer la preuve'}
-              </button>
-            </div>
-          ) : null}
-          {proofMsg && <div className="success-banner">{proofMsg}</div>}
         </div>
       )}
 
@@ -341,7 +319,7 @@ export function ConfirmClient({ bookingId }: Props) {
             disabled={actionLoading !== null}
             onClick={handleClaimPayment}
           >
-            {actionLoading === 'claim' ? 'Envoi…' : 'J\'ai effectué le paiement'}
+            {actionLoading === 'claim' ? 'Envoi…' : "J'ai effectué le paiement"}
           </button>
         )}
 

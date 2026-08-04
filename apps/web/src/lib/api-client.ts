@@ -203,28 +203,23 @@ export function submitBooking(id: string, termsAccepted: boolean) {
   });
 }
 
-/** @route POST /api/bookings/:id/claim-payment — client signale le virement */
-export function claimPayment(id: string) {
-  return bookingRequest<Booking>(id, `/api/bookings/${id}/claim-payment`, { method: 'POST' });
-}
-
-/** @route POST /api/bookings/:id/payment-proof — PDF ou capture */
-export async function uploadPaymentProof(id: string, file: File) {
+/** @route POST /api/bookings/:id/claim-payment — signale le paiement (+ preuve optionnelle) */
+export async function claimPayment(id: string, proofFile?: File | null) {
   const token = getBookingToken(id);
   if (!token) {
     throw new Error('Lien de réservation invalide — utilisez le lien reçu par email.');
   }
   const form = new FormData();
-  form.append('proof', file);
-  const url = `${resolveApiBase()}/api/bookings/${id}/payment-proof?token=${encodeURIComponent(token)}`;
+  if (proofFile) form.append('proof', proofFile);
+  const url = `${resolveApiBase()}/api/bookings/${id}/claim-payment?token=${encodeURIComponent(token)}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'X-Booking-Token': token },
     body: form,
   });
-  const json = await res.json();
+  const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(json?.error?.message || 'Upload impossible');
+    throw new Error(json?.error?.message || 'Impossible de signaler le paiement');
   }
   return (json.data ?? json) as Booking;
 }

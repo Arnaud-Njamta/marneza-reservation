@@ -19,6 +19,11 @@ const upload = multer({
 });
 
 function paymentProofUpload(req, res, next) {
+  // Sans fichier : FormData vide ou JSON — on laisse passer
+  const ctype = String(req.headers['content-type'] || '');
+  if (!ctype.includes('multipart/form-data')) {
+    return next();
+  }
   upload.single('proof')(req, res, (err) => {
     if (err) {
       const status = err.statusCode || (err.code === 'LIMIT_FILE_SIZE' ? 400 : 400);

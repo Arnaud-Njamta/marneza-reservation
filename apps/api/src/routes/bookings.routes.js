@@ -47,9 +47,15 @@ router.get('/:id/admin-review', ctrl.markBookingReviewedFromEmail);
  */
 router.post('/:id/cancel', requireBookingAccess, ctrl.cancelBooking);
 router.post('/:id/submit', requireBookingAccess, ctrl.submitBooking);
-router.post('/:id/claim-payment', requireBookingAccess, ctrl.claimPayment);
 
 const { paymentProofUpload } = require('../middlewares/payment-proof-upload.middleware');
+/** Claim + preuve optionnelle (même requête multipart) */
+router.post(
+  '/:id/claim-payment',
+  requireBookingAccess,
+  paymentProofUpload,
+  ctrl.claimPayment
+);
 router.post(
   '/:id/payment-proof',
   requireBookingAccess,

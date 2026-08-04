@@ -412,8 +412,9 @@ async function sendInvoiceByAdmin(id) {
   return updated;
 }
 
-/** Client signale avoir payé (virement / mobile money) — n'accorde PAS le statut payé */
-async function claimPaymentByClient(id) {
+/** Client signale avoir payé (virement / mobile money) — n'accorde PAS le statut payé.
+ *  Preuve (PDF/image) optionnelle mais recommandée — jointe dans le même envoi. */
+async function claimPaymentByClient(id, file) {
   const booking = await getById(id);
 
   if (booking.status !== BOOKING_STATUSES.PROCESSING) {
@@ -426,6 +427,11 @@ async function claimPaymentByClient(id) {
     const err = new Error('La synthèse de réservation n\'a pas encore été envoyée par l\'admin');
     err.statusCode = 400;
     throw err;
+  }
+
+  if (file) {
+    const proofService = require('./payment-proof.service');
+    await proofService.savePaymentProof(id, file);
   }
 
   const updated = await prisma.booking.update({

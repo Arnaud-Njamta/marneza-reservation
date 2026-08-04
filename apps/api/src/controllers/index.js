@@ -152,7 +152,7 @@ async function submitBooking(req, res, next) {
 
 async function claimPayment(req, res, next) {
   try {
-    const booking = await bookingService.claimPaymentByClient(req.params.id);
+    const booking = await bookingService.claimPaymentByClient(req.params.id, req.file);
     res.json({ data: booking });
   } catch (err) {
     next(err);
