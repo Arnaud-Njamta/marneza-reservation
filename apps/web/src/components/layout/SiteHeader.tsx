@@ -1,4 +1,3 @@
-import { AdminAccessLink } from '@/components/layout/AdminAccessLink';
 import { MARNEZA, NAV_LINKS, ODOO_SITE } from '@/lib/marneza-theme';
 
 type Props = {
@@ -79,7 +78,6 @@ export function SiteHeader({ activeOdooPath }: Props) {
             >
               <IconSearch />
             </a>
-            <AdminAccessLink />
           </div>
 
           <a href={`tel:${MARNEZA.phone.replace(/\s/g, '')}`} className="site-header__phone">

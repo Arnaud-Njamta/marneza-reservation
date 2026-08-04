@@ -67,6 +67,8 @@ const RESOURCES = [
     resourceTypeCode: 'hall',
     odooProductId: 17, // ESPACE POLYVALENT — marneza.odoo.com/shop/...-17
     pricing: { hour: 150, day: 800, evening: 1025, full_day: 1260 },
+    tagline: 'Fêtes, mariages, cérémonies',
+    showcaseFromAmount: 1500,
   },
   {
     slug: 'salle-conference',
@@ -76,6 +78,8 @@ const RESOURCES = [
     resourceTypeCode: 'conference',
     odooProductId: null,
     pricing: { hour: 70, day: 350, evening: 450, full_day: 550 },
+    tagline: 'Séminaires et réunions',
+    showcaseFromAmount: 70,
   },
   {
     slug: 'appartement',
@@ -86,6 +90,8 @@ const RESOURCES = [
     odooProductId: null,
     pricing: { apt_day: 50, apt_night: 50 },
     pricingPromo: { apt_night: { compareAtAmount: null, promoLabel: null } },
+    tagline: 'Location jour ou nuit',
+    showcaseFromAmount: 50,
   },
 ];
 
@@ -165,6 +171,9 @@ async function main() {
         name: res.name,
         description: res.description,
         odooProductId: res.odooProductId,
+        tagline: res.tagline ?? null,
+        showcaseFromAmount: res.showcaseFromAmount ?? null,
+        showcaseCurrency: res.showcaseCurrency ?? 'USD',
       },
       create: {
         slug: res.slug,
@@ -173,6 +182,9 @@ async function main() {
         resourceTypeId: resourceType.id,
         odooProductId: res.odooProductId,
         timezone: 'Africa/Kinshasa',
+        tagline: res.tagline ?? null,
+        showcaseFromAmount: res.showcaseFromAmount ?? null,
+        showcaseCurrency: res.showcaseCurrency ?? 'USD',
       },
     });
 

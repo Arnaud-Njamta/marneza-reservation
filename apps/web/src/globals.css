@@ -955,6 +955,18 @@ a:hover {
   margin-top: -0.75rem;
 }
 
+.admin-home-content__price-row {
+  display: grid;
+  grid-template-columns: 1fr 8rem;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .admin-home-content__price-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .price-display {
   display: inline-flex;
   flex-wrap: wrap;

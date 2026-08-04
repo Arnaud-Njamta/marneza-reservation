@@ -27,6 +27,9 @@ router.patch('/rental-terms/:id', admin.updateRentalTerm);
 router.delete('/rental-terms/:id', admin.deleteRentalTerm);
 router.get('/payment-settings', admin.getPaymentSettings);
 router.put('/payment-settings', admin.savePaymentSettings);
+router.get('/site-home', admin.getSiteHomeAdmin);
+router.put('/site-home', admin.saveSiteHomeTexts);
+router.patch('/resources/:id', admin.updateResourceShowcase);
 router.post('/bookings/backfill-references', admin.backfillReferences);
 
 module.exports = router;

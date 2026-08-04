@@ -89,6 +89,7 @@ setInterval(sendBookingReminders, 60 * 60 * 1000);
     await synthesisService.seedDefaultConfigs();
     await rentalTermsService.ensureDefaults();
     await require('./services/payment-settings.service').ensureDefaults();
+    await require('./services/site-content.service').ensureHomeDefaults();
   } catch (err) {
     console.warn('[init] Seed admin features:', err?.message || err);
   }

@@ -64,23 +64,28 @@ model ResourceType {
 // ─── Espaces réservables ───────────────────────────────────────
 
 model Resource {
-  id             String          @id @default(uuid())
-  resourceTypeId String
-  resourceType   ResourceType    @relation(fields: [resourceTypeId], references: [id])
-  name           String
-  slug           String          @unique // espace-polyvalent | salle-conference | appartement
-  description    String?
-  capacity       Int?
-  isActive       Boolean         @default(true)
-  odooProductId  Int?
-  timezone       String          @default("Africa/Kinshasa")
-  bookings       Booking[]
-  pricingRules   PricingRule[]
-  blockedPeriods BlockedPeriod[]
-  media          Media[]
-  productMaps    ProductResourceMap[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                  String          @id @default(uuid())
+  resourceTypeId      String
+  resourceType        ResourceType    @relation(fields: [resourceTypeId], references: [id])
+  name                String
+  slug                String          @unique // espace-polyvalent | salle-conference | appartement
+  description         String?
+  /// Texte court sous le nom (page d’accueil)
+  tagline             String?
+  /// Prix « à partir de » affiché en vitrine (indépendant des tarifs de réservation)
+  showcaseFromAmount  Decimal?        @db.Decimal(10, 2)
+  showcaseCurrency    String          @default("USD")
+  capacity            Int?
+  isActive            Boolean         @default(true)
+  odooProductId       Int?
+  timezone            String          @default("Africa/Kinshasa")
+  bookings            Booking[]
+  pricingRules        PricingRule[]
+  blockedPeriods      BlockedPeriod[]
+  media               Media[]
+  productMaps         ProductResourceMap[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   @@index([resourceTypeId])
   @@map("resources")

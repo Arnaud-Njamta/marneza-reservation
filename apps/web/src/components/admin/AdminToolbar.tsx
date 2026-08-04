@@ -8,6 +8,7 @@ import { formatLastSync, useAdminRefresh } from '@/components/admin/AdminRefresh
 
 const TABS = [
   { href: '/admin', label: 'Réservations' },
+  { href: '/admin/home', label: 'Accueil' },
   { href: '/admin/calendar', label: 'Calendrier' },
   { href: '/admin/pricing', label: 'Tarifs' },
   { href: '/admin/terms', label: 'Conditions' },

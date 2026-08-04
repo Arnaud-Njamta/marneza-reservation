@@ -1,42 +1,61 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PriceDisplay } from '@/components/booking/PriceDisplay';
-import { getResources } from '@/lib/api-client';
+import { getPublicHome } from '@/lib/api-client';
 import { getResourceMinPrice, ODOO_SHOP_URL } from '@/lib/odoo-shop';
+import type { HomeTexts, Resource } from '@/types/api';
 
-const FALLBACK = [
-  { slug: 'espace-polyvalent', name: 'Espace Polyvalent', desc: 'Fêtes, mariages, cérémonies' },
-  { slug: 'salle-conference', name: 'Salle de Conférence', desc: 'Séminaires et réunions' },
-  { slug: 'appartement', name: 'Appartement Marneza', desc: 'Location jour ou nuit' },
-];
+const FALLBACK_HOME: HomeTexts = {
+  eyebrow: 'Réservation en ligne',
+  title: 'Réservez votre événement',
+  subtitle:
+    'Depuis notre boutique, choisissez votre espace puis réservez vos dates ici. Rapide, simple et sécurisé.',
+  intro:
+    'Parcours recommandé : commencez par la boutique Salle de fête, puis cliquez sur « Réserver en ligne » sur la fiche produit.',
+};
 
 type Card = {
   slug: string;
   name: string;
-  desc: string;
-  minPrice: ReturnType<typeof getResourceMinPrice>;
+  tagline: string;
+  fromAmount: number | null;
+  fromCurrency: string;
+  compareAtAmount?: number;
+  promoLabel?: string;
 };
 
+function cardsFromResources(resources: Resource[]): Card[] {
+  return resources.map((r) => {
+    const showcase =
+      r.showcaseFromAmount != null && Number.isFinite(Number(r.showcaseFromAmount))
+        ? {
+            amount: Number(r.showcaseFromAmount),
+            currency: r.showcaseCurrency || 'USD',
+          }
+        : null;
+    const computed = getResourceMinPrice(r);
+    const from = showcase ?? computed;
+    return {
+      slug: r.slug,
+      name: r.name,
+      tagline: r.tagline || r.description || '',
+      fromAmount: from?.amount ?? null,
+      fromCurrency: from?.currency ?? 'USD',
+      compareAtAmount: !showcase ? computed?.compareAtAmount : undefined,
+      promoLabel: !showcase ? computed?.promoLabel : undefined,
+    };
+  });
+}
+
 export function HomePage() {
-  const [cards, setCards] = useState<Card[]>(
-    FALLBACK.map((r) => ({ ...r, minPrice: null }))
-  );
+  const [home, setHome] = useState<HomeTexts>(FALLBACK_HOME);
+  const [cards, setCards] = useState<Card[]>([]);
 
   useEffect(() => {
-    getResources()
-      .then((resources) => {
-        if (!resources.length) return;
-        setCards(
-          resources.map((r) => {
-            const fallback = FALLBACK.find((f) => f.slug === r.slug);
-            return {
-              slug: r.slug,
-              name: r.name,
-              desc: fallback?.desc ?? (r.description ?? ''),
-              minPrice: getResourceMinPrice(r),
-            };
-          })
-        );
+    getPublicHome()
+      .then((data) => {
+        if (data.home) setHome({ ...FALLBACK_HOME, ...data.home });
+        if (data.resources?.length) setCards(cardsFromResources(data.resources));
       })
       .catch(() => {
         /* accueil dégradé */
@@ -45,20 +64,18 @@ export function HomePage() {
 
   return (
     <main className="container page-main">
-      <p className="page-eyebrow">Réservation en ligne</p>
-      <h1 className="page-title">Réservez votre événement</h1>
-      <p className="page-subtitle">
-        Depuis notre boutique, choisissez votre espace puis réservez vos dates ici. Rapide, simple
-        et sécurisé.
-      </p>
+      <p className="page-eyebrow">{home.eyebrow}</p>
+      <h1 className="page-title">{home.title}</h1>
+      <p className="page-subtitle">{home.subtitle}</p>
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <p style={{ margin: 0 }}>
-          <strong>Parcours recommandé :</strong> commencez par la{' '}
-          <a href={ODOO_SHOP_URL}>boutique Salle de fête</a>, puis cliquez sur{' '}
-          <strong>Réserver en ligne</strong> sur la fiche produit.
-        </p>
-      </div>
+      {home.intro && (
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <p style={{ margin: 0 }}>
+            {home.intro}{' '}
+            <a href={ODOO_SHOP_URL}>Boutique</a>
+          </p>
+        </div>
+      )}
 
       <p style={{ fontSize: '0.875rem', color: 'var(--marneza-muted)', marginBottom: '0.75rem' }}>
         Accès direct (si vous connaissez déjà l&apos;espace) :
@@ -73,15 +90,15 @@ export function HomePage() {
               </strong>
               <br />
               <span style={{ color: 'var(--marneza-muted)', fontSize: '0.9rem' }}>
-                {r.desc}
-                {r.minPrice && (
+                {r.tagline}
+                {r.fromAmount != null && (
                   <>
                     {' — à partir de '}
                     <PriceDisplay
-                      amount={r.minPrice.amount}
-                      currency={r.minPrice.currency}
-                      compareAtAmount={r.minPrice.compareAtAmount}
-                      promoLabel={r.minPrice.promoLabel}
+                      amount={r.fromAmount}
+                      currency={r.fromCurrency}
+                      compareAtAmount={r.compareAtAmount}
+                      promoLabel={r.promoLabel}
                       size="sm"
                     />
                   </>

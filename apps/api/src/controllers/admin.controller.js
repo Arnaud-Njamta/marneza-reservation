@@ -484,6 +484,40 @@ async function savePaymentSettings(req, res, next) {
   }
 }
 
+async function getSiteHomeAdmin(_req, res, next) {
+  try {
+    const site = require('../services/site-content.service');
+    const [home, resources] = await Promise.all([
+      site.getHomeTexts(),
+      site.listResourcesForAdmin(),
+    ]);
+    res.json({ data: { home, resources } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function saveSiteHomeTexts(req, res, next) {
+  try {
+    const home = await require('../services/site-content.service').updateHomeTexts(req.body ?? {});
+    res.json({ data: home });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateResourceShowcase(req, res, next) {
+  try {
+    const resource = await require('../services/site-content.service').updateResourceShowcase(
+      req.params.id,
+      req.body ?? {}
+    );
+    res.json({ data: resource });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listBookings,
   getBooking,
@@ -518,4 +552,7 @@ module.exports = {
   reorderRentalTerms,
   getPaymentSettings,
   savePaymentSettings,
+  getSiteHomeAdmin,
+  saveSiteHomeTexts,
+  updateResourceShowcase,
 };

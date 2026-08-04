@@ -238,6 +238,15 @@ async function listRentalTerms(_req, res, next) {
   }
 }
 
+async function getPublicHome(_req, res, next) {
+  try {
+    const data = await require('../services/site-content.service').getPublicHome();
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listResources,
   getResource,
@@ -253,6 +262,7 @@ module.exports = {
   downloadPaymentProof,
   markBookingReviewedFromEmail,
   listRentalTerms,
+  getPublicHome,
   adminListBookings,
   adminCancelBooking,
 };

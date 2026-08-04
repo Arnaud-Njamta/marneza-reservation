@@ -9,12 +9,16 @@
 import type {
   AdminCalendarData,
   AdminPricingRule,
+  AdminSiteHome,
   AdminStats,
   AvailabilityResult,
   Booking,
   BookingFeeLine,
+  HomeTexts,
+  PublicHome,
   Quote,
   Resource,
+  ShowcaseResource,
 } from '@/types/api';
 import { getAdminToken } from '@/lib/auth';
 import { getBookingToken, saveBookingToken } from '@/lib/booking-access';
@@ -104,6 +108,11 @@ function bookingRequest<T>(bookingId: string, path: string, options?: RequestIni
 /** @route GET /api/resources */
 export function getResources() {
   return request<Resource[]>('/api/resources');
+}
+
+/** @route GET /api/home — textes + espaces pour la page d’accueil */
+export function getPublicHome() {
+  return request<PublicHome>('/api/home');
 }
 
 /** @route GET /api/resources/:slug */
@@ -369,6 +378,37 @@ export function adminUpdatePricing(
   }
 ) {
   return adminRequest<AdminPricingRule>(`/api/admin/pricing/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/** @route GET /api/admin/site-home */
+export function adminGetSiteHome() {
+  return adminRequest<AdminSiteHome>('/api/admin/site-home');
+}
+
+/** @route PUT /api/admin/site-home */
+export function adminSaveSiteHome(data: Partial<HomeTexts>) {
+  return adminRequest<HomeTexts>('/api/admin/site-home', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/** @route PATCH /api/admin/resources/:id */
+export function adminUpdateShowcaseResource(
+  id: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    tagline?: string | null;
+    showcaseFromAmount?: number | null;
+    showcaseCurrency?: string;
+    isActive?: boolean;
+  }
+) {
+  return adminRequest<ShowcaseResource>(`/api/admin/resources/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });

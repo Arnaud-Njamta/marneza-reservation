@@ -11,6 +11,7 @@ import { AdminCalendarPage } from '@/pages/admin/AdminCalendarPage';
 import { AdminPricingPage } from '@/pages/admin/AdminPricingPage';
 import { AdminTermsPage } from '@/pages/admin/AdminTermsPage';
 import { AdminAccountPage } from '@/pages/admin/AdminAccountPage';
+import { AdminHomePage } from '@/pages/admin/AdminHomePage';
 
 export function App() {
   return (
@@ -22,6 +23,7 @@ export function App() {
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route path="/admin" element={<AdminShell />}>
           <Route index element={<AdminPage />} />
+          <Route path="home" element={<AdminHomePage />} />
           <Route path="calendar" element={<AdminCalendarPage />} />
           <Route path="pricing" element={<AdminPricingPage />} />
           <Route path="terms" element={<AdminTermsPage />} />

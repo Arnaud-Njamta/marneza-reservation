@@ -33,12 +33,43 @@ export type Resource = {
   slug: string;
   name: string;
   description: string | null;
+  tagline?: string | null;
+  showcaseFromAmount?: string | number | null;
+  showcaseCurrency?: string | null;
   resourceType: {
     code: string;
     name: string;
     bookingTypes: BookingType[];
   };
   pricingRules: PricingRule[];
+};
+
+export type HomeTexts = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  intro: string;
+};
+
+export type ShowcaseResource = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  tagline: string | null;
+  showcaseFromAmount: string | number | null;
+  showcaseCurrency: string;
+  isActive: boolean;
+};
+
+export type PublicHome = {
+  home: HomeTexts;
+  resources: Resource[];
+};
+
+export type AdminSiteHome = {
+  home: HomeTexts;
+  resources: ShowcaseResource[];
 };
 
 export type AvailabilityResult = {

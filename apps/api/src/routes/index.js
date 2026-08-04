@@ -28,11 +28,13 @@ const adminPricingRoutes = require('./admin/pricing.routes');
 const adminRoutes = require('./admin/index.routes');
 const adminSettingsRoutes = require('./admin/settings.routes');
 const rentalTermsRoutes = require('./rental-terms.routes');
+const homeRoutes = require('./home.routes');
 
 const router = Router();
 
 // ─── Public ────────────────────────────────────────────────────
 router.use('/auth', authRoutes);
+router.use('/home', homeRoutes);
 router.use('/resources', resourcesRoutes);
 router.use('/resources/:slug/availability', availabilityRoutes);
 router.use('/bookings', bookingsRoutes);
