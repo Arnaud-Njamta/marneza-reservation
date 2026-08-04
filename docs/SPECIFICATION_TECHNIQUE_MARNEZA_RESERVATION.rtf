@@ -1,243 +1,446 @@
-{\rtf1\ansi\deff0
-{\fonttbl{\f0 Calibri;}{\f1 Consolas;}}
-\fs22
-\b SPECIFICATION TECHNIQUE FORMELLE\par
-\b0
-Application : Marneza Reservation\par
-Version : 1.0\par
-Date : 07/07/2026\par
-\par
-\b 1. OBJET DU DOCUMENT\par
-\b0
-Ce document d\'e9crit l\'architecture technique de l\'application de r\'e9servation Marneza, les routes front-end et API, les d\'e9pendances entre modules, la structure de base de donn\'e9es, les flux m\'e9tier et les pr\'e9requis de d\'e9ploiement.\par
-\par
-\b 2. PERIMETRE FONCTIONNEL\par
-\b0
-2.1 Fonctions couvertes\par
-- Consultation des ressources r\'e9servables (salles, appartement)\par
-- Choix du type de location et de la date\par
-- V\'e9rification de disponibilit\'e9 en temps r\'e9el\par
-- Calcul tarifaire avec promotions\par
-- Cr\'e9ation de r\'e9servation en statut pending (hold temporaire)\par
-- Confirmation/annulation via interface administration\par
-- Gestion admin des tarifs et promotions\par
-\par
-2.2 Hors p\'e9rim\'e8tre imm\'e9diat\par
-- Paiement en ligne final (structure pr\'e9vue, branchement fournisseur en phase suivante)\par
-- Automatisation compl\'e8te de facturation externe\par
-\par
-\b 3. STACK TECHNIQUE\par
-\b0
-3.1 Front-end\par
-- Next.js 15\par
-- React 19\par
-- TypeScript\par
-\par
-3.2 Back-end\par
-- Node.js\par
-- Express\par
-- Prisma ORM\par
-\par
-3.3 Donn\'e9es et services\par
-- PostgreSQL (base relationnelle principale)\par
-- Redis (support jobs/queue)\par
-\par
-3.4 S\'e9curit\'e9 / Infrastructure\par
-- JWT pour authentification admin\par
-- Bcrypt pour hash de mots de passe\par
-- Helmet pour en-t\'eates HTTP\par
-- CORS contr\'f4l\'e9 par liste blanche\par
-\par
-\b 4. ARCHITECTURE LOGIQUE\par
-\b0
-4.1 Mod\'e8le d\'e9cution\par
-Pattern appliqu\'e9 : Route -> Controller -> Service -> Prisma -> PostgreSQL.\par
-\par
-4.2 Cha\'eene d\'appel front vers API\par
-Pages Next.js -> composants m\'e9tier -> \f1 lib/api-client.ts\f0  -> endpoints \f1 /api/*\f0  -> controllers -> services -> base.\par
-\par
-4.3 Distribution des responsabilit\'e9s\par
-- Front : UX, formulaires, navigation, affichage disponibilit\'e9/prix\par
-- API : r\'e8gles m\'e9tier, conflits de cr\'e9neaux, calculs, autorisations\par
-- Base : persistance transactionnelle et historique\par
-\par
-\b 5. ROUTES FRONT-END (NEXT.JS)\par
-\b0
-5.1 Public\par
-- \f1 /\f0  : accueil\par
-- \f1 /book/[slug]\f0  : r\'e9servation ressource\par
-- \f1 /book/[slug]/confirm/[id]\f0  : confirmation r\'e9servation\par
-\par
-5.2 Administration\par
-- \f1 /admin/login\f0  : authentification admin\par
-- \f1 /admin\f0  : tableau de bord r\'e9servations\par
-- \f1 /admin/calendar\f0  : calendrier d\'e9taill\'e9\par
-- \f1 /admin/pricing\f0  : gestion des prix/promotions\par
-\par
-\b 6. ROUTES API\par
-\b0
-Pr\'e9fixe global : \f1 /api\f0\par
-\par
-6.1 Public\par
-- \f1 POST /api/auth/login\f0  : connexion admin\par
-- \f1 GET /api/resources\f0  : liste des ressources actives\par
-- \f1 GET /api/resources/:slug\f0  : d\'e9tail ressource\par
-- \f1 GET /api/resources/:slug/availability\f0  : disponibilit\'e9\par
-- \f1 GET /api/pricing/quote\f0  : devis tarifaire\par
-- \f1 POST /api/bookings\f0  : cr\'e9ation r\'e9servation\par
-- \f1 GET /api/bookings/:id\f0  : d\'e9tail r\'e9servation\par
-- \f1 POST /api/bookings/:id/cancel\f0  : annulation\par
-- \f1 GET /api/health\f0  : sant\'e9 service\par
-\par
-6.2 Administration (JWT requis)\par
-- \f1 GET /api/auth/me\f0  : session admin courante\par
-- \f1 GET /api/admin/bookings\f0\par
-- \f1 GET /api/admin/bookings/:id\f0\par
-- \f1 POST /api/admin/bookings/:id/confirm\f0\par
-- \f1 POST /api/admin/bookings/:id/cancel\f0\par
-- \f1 GET /api/admin/calendar\f0\par
-- \f1 GET /api/admin/stats\f0\par
-- \f1 GET /api/admin/pricing\f0\par
-- \f1 PATCH /api/admin/pricing/:id\f0\par
-\par
-\b 7. MATRICE D\'92APPELS (QUI APPELLE QUOI)\par
-\b0
-7.1 C\'f4t\'e9 front\par
-- \f1 BookingWizard.tsx\f0  appelle :\par
-  * \f1 getQuote()\f0  -> \f1 GET /api/pricing/quote\f0\par
-  * \f1 getAvailability()\f0  (via calendrier) -> \f1 GET /api/resources/:slug/availability\f0\par
-  * \f1 createBooking()\f0  -> \f1 POST /api/bookings\f0\par
-\par
-- \f1 ConfirmClient\f0  appelle :\par
-  * \f1 getBooking(id)\f0  -> \f1 GET /api/bookings/:id\f0\par
-\par
-- Modules admin appellent :\par
-  * \f1 adminListBookings/adminConfirmBooking/adminCancelBooking\f0\par
-  * \f1 adminGetCalendar\f0\par
-  * \f1 adminListPricing/adminUpdatePricing\f0\par
-\par
-7.2 C\'f4t\'e9 API\par
-- \f1 routes/index.js\f0  monte toutes les routes\par
-- Controllers redirigent vers services m\'e9tier\par
-- Services utilisent Prisma (\f1 config/database\f0)\par
-\par
-7.3 Jobs\par
-- \f1 expire-pending.job\f0  (toutes les 2 min) : pending expir\'e9 -> cancelled\par
-- \f1 sync-odoo.job\f0  : lanc\'e9 apr\'e8s confirmation admin si activ\'e9\par
-\par
-\b 8. FLUX METIER DETAILLES\par
-\b0
-8.1 Flux de cr\'e9ation d\'une r\'e9servation\par
-1) Chargement ressource\par
-2) Choix type/date\par
-3) Contr\'f4le disponibilit\'e9\par
-4) Calcul tarif\par
-5) Cr\'e9ation booking pending + expiresAt\par
-6) Redirection confirmation\par
-\par
-8.2 Flux d\'92expiration de hold\par
-1) Job planifi\'e9\par
-2) Recherche des pending expir\'e9s\par
-3) Mise \'e0 jour statut cancelled\par
-\par
-8.3 Flux de confirmation admin\par
-1) Admin authentifi\'e9\par
-2) Action confirm\par
-3) \f1 bookingService.confirm\f0\par
-4) D\'e9clenchement sync externe (si activ\'e9)\par
-\par
-\b 9. SCHEMA BASE DE DONNEES (NIVEAU FONCTIONNEL)\par
-\b0
-9.1 Entit\'e9s principales\par
-- \f1 resource_types\f0  : cat\'e9gories de ressources\par
-- \f1 resources\f0  : ressources r\'e9servables\par
-- \f1 booking_types\f0  : modes de location\par
-- \f1 pricing_rules\f0  : prix, promo, p\'e9riodes\par
-- \f1 customers\f0  : clients\par
-- \f1 bookings\f0  : r\'e9servations\par
-- \f1 blocked_periods\f0  : indisponibilit\'e9s\par
-\par
-9.2 Administration/s\'e9curit\'e9\par
-- \f1 users\f0, \f1 roles\f0, \f1 user_roles\f0\par
-\par
-9.3 Int\'e9gration et extension\par
-- \f1 products\f0, \f1 product_resource_map\f0, \f1 odoo_sync_log\f0\par
-- \f1 payments\f0  (pr\'e9vu pour l\'92int\'e9gration paiement)\par
-\par
-9.4 Contraintes notables\par
-- Unicit\'e9 \f1 pricing_rules(resourceId, bookingTypeId)\f0\par
-- Index temporels sur \f1 bookings\f0  et \f1 blocked_periods\f0\par
-- Etats booking : draft, pending, confirmed, cancelled, completed\par
-\par
-\b 10. SECURITE APPLICATIVE\par
-\b0
-10.1 M\'e9canismes actifs\par
-- Auth admin par JWT\par
-- Hash mot de passe bcrypt\par
-- Protection routes admin par middleware auth\par
-- Helmet + CORS\par
-\par
-10.2 Param\'e8tres obligatoires production\par
-- \f1 NODE_ENV=production\f0\par
-- \f1 REQUIRE_AUTH=true\f0\par
-- \f1 JWT_SECRET\f0  fort\par
-- Mot de passe admin fort\par
-- Origines CORS limit\'e9es\par
-\par
-\b 11. VARIABLES D\'92ENVIRONNEMENT CRITIQUES\par
-\b0
-- \f1 APP_URL\f0, \f1 API_URL\f0, \f1 NEXT_PUBLIC_API_URL\f0\par
-- \f1 DATABASE_URL\f0\par
-- \f1 REDIS_URL\f0\par
-- \f1 BOOKING_HOLD_MINUTES\f0\par
-- \f1 JWT_SECRET\f0, \f1 JWT_EXPIRES_IN\f0, \f1 REQUIRE_AUTH\f0\par
-- \f1 ADMIN_EMAIL\f0, \f1 ADMIN_PASSWORD\f0\par
-- \f1 ODOO_URL\f0, \f1 ODOO_DB\f0, \f1 ODOO_USERNAME\f0, \f1 ODOO_API_KEY\f0, \f1 ODOO_SYNC_ENABLED\f0\par
-- \f1 CORS_ORIGINS\f0\par
-\par
-\b 12. DEPLOIEMENT - PRE REQUIS\par
-\b0
-12.1 Pr\'e9requis techniques\par
-- Base PostgreSQL production disponible\par
-- Variables environnement inject\'e9es\par
-- HTTPS actif sur domaine\par
-- DNS du sous-domaine r\'e9servation point\'e9 vers l\'92infrastructure\par
-\par
-12.2 S\'e9quence recommand\'e9e\par
-1) Migrations Prisma\par
-2) Seed initial\par
-3) D\'e9marrage API\par
-4) Build et d\'e9marrage front\par
-5) Tests E2E fonctionnels\par
-6) Activation des liens boutique vers app\par
-\par
-\b 13. ETAT D\'92AVANCEMENT\par
-\b0
-13.1 D\'e9j\'e0 op\'e9rationnel\par
-- Moteur de disponibilit\'e9\par
-- R\'e9servation + hold\par
-- Admin login + dashboards\par
-- Tarifs dynamiques + promotions\par
-\par
-13.2 A finaliser selon roadmap\par
-- Int\'e9gration paiement en ligne compl\'e8te\par
-- Industrialisation d\'e9ploiement production\par
-- Param\'e9trage final des liens boutique\par
-\par
-\b 14. ANNEXE - CARTOGRAPHIE RAPIDE DES MODULES\par
-\b0
-Back-end principal :\par
-- \f1 src/routes/*.js\f0\par
-- \f1 src/controllers/*.js\f0\par
-- \f1 src/services/*.js\f0\par
-- \f1 src/jobs/*.js\f0\par
-\par
-Front-end principal :\par
-- \f1 src/app/**/page.tsx\f0\par
-- \f1 src/components/booking/*\f0\par
-- \f1 src/components/admin/*\f0\par
-- \f1 src/lib/api-client.ts\f0\par
-\par
-\b Fin du document\par
-\b0
-}
+{\rtf1\adeflang1025\ansi\ansicpg1252\uc1\adeff0\deff0\stshfdbch0\stshfloch42\stshfhich42\stshfbi0\deflang1036\deflangfe1036\themelang1036\themelangfe0\themelangcs0{\fonttbl{\f0\fbidi \froman\fcharset0\fprq2{\*\panose 02020603050405020304}Times New Roman;}{\f34\fbidi \froman\fcharset0\fprq2{\*\panose 02040503050406030204}Cambria Math;}
+{\f37\fbidi \fswiss\fcharset0\fprq2{\*\panose 020f0502020204030204}Calibri;}{\f42\fbidi \fswiss\fcharset0\fprq2 Aptos;}{\f45\fbidi \fmodern\fcharset0\fprq1{\*\panose 020b0609020204030204}Consolas;}
+{\flomajor\f31500\fbidi \froman\fcharset0\fprq2{\*\panose 02020603050405020304}Times New Roman;}{\fdbmajor\f31501\fbidi \froman\fcharset0\fprq2{\*\panose 02020603050405020304}Times New Roman;}{\fhimajor\f31502\fbidi \fswiss\fcharset0\fprq2 Aptos Display;}
+{\fbimajor\f31503\fbidi \froman\fcharset0\fprq2{\*\panose 02020603050405020304}Times New Roman;}{\flominor\f31504\fbidi \froman\fcharset0\fprq2{\*\panose 02020603050405020304}Times New Roman;}
+{\fdbminor\f31505\fbidi \froman\fcharset0\fprq2{\*\panose 02020603050405020304}Times New Roman;}{\fhiminor\f31506\fbidi \fswiss\fcharset0\fprq2 Aptos;}{\fbiminor\f31507\fbidi \froman\fcharset0\fprq2{\*\panose 02020603050405020304}Times New Roman;}
+{\f48\fbidi \froman\fcharset238\fprq2 Times New Roman CE;}{\f49\fbidi \froman\fcharset204\fprq2 Times New Roman Cyr;}{\f51\fbidi \froman\fcharset161\fprq2 Times New Roman Greek;}{\f52\fbidi \froman\fcharset162\fprq2 Times New Roman Tur;}
+{\f53\fbidi \froman\fcharset177\fprq2 Times New Roman (Hebrew);}{\f54\fbidi \froman\fcharset178\fprq2 Times New Roman (Arabic);}{\f55\fbidi \froman\fcharset186\fprq2 Times New Roman Baltic;}
+{\f56\fbidi \froman\fcharset163\fprq2 Times New Roman (Vietnamese);}{\f58\fbidi \froman\fcharset238\fprq2 Cambria Math CE;}{\f59\fbidi \froman\fcharset204\fprq2 Cambria Math Cyr;}{\f61\fbidi \froman\fcharset161\fprq2 Cambria Math Greek;}
+{\f62\fbidi \froman\fcharset162\fprq2 Cambria Math Tur;}{\f65\fbidi \froman\fcharset186\fprq2 Cambria Math Baltic;}{\f66\fbidi \froman\fcharset163\fprq2 Cambria Math (Vietnamese);}{\f68\fbidi \fswiss\fcharset238\fprq2 Calibri CE;}
+{\f69\fbidi \fswiss\fcharset204\fprq2 Calibri Cyr;}{\f71\fbidi \fswiss\fcharset161\fprq2 Calibri Greek;}{\f72\fbidi \fswiss\fcharset162\fprq2 Calibri Tur;}{\f73\fbidi \fswiss\fcharset177\fprq2 Calibri (Hebrew);}
+{\f74\fbidi \fswiss\fcharset178\fprq2 Calibri (Arabic);}{\f75\fbidi \fswiss\fcharset186\fprq2 Calibri Baltic;}{\f76\fbidi \fswiss\fcharset163\fprq2 Calibri (Vietnamese);}{\f78\fbidi \fswiss\fcharset238\fprq2 Aptos CE;}
+{\f79\fbidi \fswiss\fcharset204\fprq2 Aptos Cyr;}{\f81\fbidi \fswiss\fcharset161\fprq2 Aptos Greek;}{\f82\fbidi \fswiss\fcharset162\fprq2 Aptos Tur;}{\f85\fbidi \fswiss\fcharset186\fprq2 Aptos Baltic;}
+{\f86\fbidi \fswiss\fcharset163\fprq2 Aptos (Vietnamese);}{\f88\fbidi \fmodern\fcharset238\fprq1 Consolas CE;}{\f89\fbidi \fmodern\fcharset204\fprq1 Consolas Cyr;}{\f91\fbidi \fmodern\fcharset161\fprq1 Consolas Greek;}
+{\f92\fbidi \fmodern\fcharset162\fprq1 Consolas Tur;}{\f95\fbidi \fmodern\fcharset186\fprq1 Consolas Baltic;}{\f96\fbidi \fmodern\fcharset163\fprq1 Consolas (Vietnamese);}{\flomajor\f31508\fbidi \froman\fcharset238\fprq2 Times New Roman CE;}
+{\flomajor\f31509\fbidi \froman\fcharset204\fprq2 Times New Roman Cyr;}{\flomajor\f31511\fbidi \froman\fcharset161\fprq2 Times New Roman Greek;}{\flomajor\f31512\fbidi \froman\fcharset162\fprq2 Times New Roman Tur;}
+{\flomajor\f31513\fbidi \froman\fcharset177\fprq2 Times New Roman (Hebrew);}{\flomajor\f31514\fbidi \froman\fcharset178\fprq2 Times New Roman (Arabic);}{\flomajor\f31515\fbidi \froman\fcharset186\fprq2 Times New Roman Baltic;}
+{\flomajor\f31516\fbidi \froman\fcharset163\fprq2 Times New Roman (Vietnamese);}{\fdbmajor\f31518\fbidi \froman\fcharset238\fprq2 Times New Roman CE;}{\fdbmajor\f31519\fbidi \froman\fcharset204\fprq2 Times New Roman Cyr;}
+{\fdbmajor\f31521\fbidi \froman\fcharset161\fprq2 Times New Roman Greek;}{\fdbmajor\f31522\fbidi \froman\fcharset162\fprq2 Times New Roman Tur;}{\fdbmajor\f31523\fbidi \froman\fcharset177\fprq2 Times New Roman (Hebrew);}
+{\fdbmajor\f31524\fbidi \froman\fcharset178\fprq2 Times New Roman (Arabic);}{\fdbmajor\f31525\fbidi \froman\fcharset186\fprq2 Times New Roman Baltic;}{\fdbmajor\f31526\fbidi \froman\fcharset163\fprq2 Times New Roman (Vietnamese);}
+{\fhimajor\f31528\fbidi \fswiss\fcharset238\fprq2 Aptos Display CE;}{\fhimajor\f31529\fbidi \fswiss\fcharset204\fprq2 Aptos Display Cyr;}{\fhimajor\f31531\fbidi \fswiss\fcharset161\fprq2 Aptos Display Greek;}
+{\fhimajor\f31532\fbidi \fswiss\fcharset162\fprq2 Aptos Display Tur;}{\fhimajor\f31535\fbidi \fswiss\fcharset186\fprq2 Aptos Display Baltic;}{\fhimajor\f31536\fbidi \fswiss\fcharset163\fprq2 Aptos Display (Vietnamese);}
+{\fbimajor\f31538\fbidi \froman\fcharset238\fprq2 Times New Roman CE;}{\fbimajor\f31539\fbidi \froman\fcharset204\fprq2 Times New Roman Cyr;}{\fbimajor\f31541\fbidi \froman\fcharset161\fprq2 Times New Roman Greek;}
+{\fbimajor\f31542\fbidi \froman\fcharset162\fprq2 Times New Roman Tur;}{\fbimajor\f31543\fbidi \froman\fcharset177\fprq2 Times New Roman (Hebrew);}{\fbimajor\f31544\fbidi \froman\fcharset178\fprq2 Times New Roman (Arabic);}
+{\fbimajor\f31545\fbidi \froman\fcharset186\fprq2 Times New Roman Baltic;}{\fbimajor\f31546\fbidi \froman\fcharset163\fprq2 Times New Roman (Vietnamese);}{\flominor\f31548\fbidi \froman\fcharset238\fprq2 Times New Roman CE;}
+{\flominor\f31549\fbidi \froman\fcharset204\fprq2 Times New Roman Cyr;}{\flominor\f31551\fbidi \froman\fcharset161\fprq2 Times New Roman Greek;}{\flominor\f31552\fbidi \froman\fcharset162\fprq2 Times New Roman Tur;}
+{\flominor\f31553\fbidi \froman\fcharset177\fprq2 Times New Roman (Hebrew);}{\flominor\f31554\fbidi \froman\fcharset178\fprq2 Times New Roman (Arabic);}{\flominor\f31555\fbidi \froman\fcharset186\fprq2 Times New Roman Baltic;}
+{\flominor\f31556\fbidi \froman\fcharset163\fprq2 Times New Roman (Vietnamese);}{\fdbminor\f31558\fbidi \froman\fcharset238\fprq2 Times New Roman CE;}{\fdbminor\f31559\fbidi \froman\fcharset204\fprq2 Times New Roman Cyr;}
+{\fdbminor\f31561\fbidi \froman\fcharset161\fprq2 Times New Roman Greek;}{\fdbminor\f31562\fbidi \froman\fcharset162\fprq2 Times New Roman Tur;}{\fdbminor\f31563\fbidi \froman\fcharset177\fprq2 Times New Roman (Hebrew);}
+{\fdbminor\f31564\fbidi \froman\fcharset178\fprq2 Times New Roman (Arabic);}{\fdbminor\f31565\fbidi \froman\fcharset186\fprq2 Times New Roman Baltic;}{\fdbminor\f31566\fbidi \froman\fcharset163\fprq2 Times New Roman (Vietnamese);}
+{\fhiminor\f31568\fbidi \fswiss\fcharset238\fprq2 Aptos CE;}{\fhiminor\f31569\fbidi \fswiss\fcharset204\fprq2 Aptos Cyr;}{\fhiminor\f31571\fbidi \fswiss\fcharset161\fprq2 Aptos Greek;}{\fhiminor\f31572\fbidi \fswiss\fcharset162\fprq2 Aptos Tur;}
+{\fhiminor\f31575\fbidi \fswiss\fcharset186\fprq2 Aptos Baltic;}{\fhiminor\f31576\fbidi \fswiss\fcharset163\fprq2 Aptos (Vietnamese);}{\fbiminor\f31578\fbidi \froman\fcharset238\fprq2 Times New Roman CE;}
+{\fbiminor\f31579\fbidi \froman\fcharset204\fprq2 Times New Roman Cyr;}{\fbiminor\f31581\fbidi \froman\fcharset161\fprq2 Times New Roman Greek;}{\fbiminor\f31582\fbidi \froman\fcharset162\fprq2 Times New Roman Tur;}
+{\fbiminor\f31583\fbidi \froman\fcharset177\fprq2 Times New Roman (Hebrew);}{\fbiminor\f31584\fbidi \froman\fcharset178\fprq2 Times New Roman (Arabic);}{\fbiminor\f31585\fbidi \froman\fcharset186\fprq2 Times New Roman Baltic;}
+{\fbiminor\f31586\fbidi \froman\fcharset163\fprq2 Times New Roman (Vietnamese);}}{\colortbl;\red0\green0\blue0;\red0\green0\blue255;\red0\green255\blue255;\red0\green255\blue0;\red255\green0\blue255;\red255\green0\blue0;\red255\green255\blue0;
+\red255\green255\blue255;\red0\green0\blue128;\red0\green128\blue128;\red0\green128\blue0;\red128\green0\blue128;\red128\green0\blue0;\red128\green128\blue0;\red128\green128\blue128;\red192\green192\blue192;\red0\green0\blue0;\red0\green0\blue0;}
+{\*\defchp \f42 }{\*\defpap \ql \li0\ri0\widctlpar\wrapdefault\aspalpha\aspnum\faauto\adjustright\rin0\lin0\itap0 }\noqfpromote {\stylesheet{\ql \li0\ri0\sa160\sl278\slmult1\widctlpar\wrapdefault\aspalpha\aspnum\faauto\adjustright\rin0\lin0\itap0 
+\rtlch\fcs1 \af0\afs24\alang1025 \ltrch\fcs0 \f42\fs24\lang1036\langfe1036\kerning2\cgrid\langnp1036\langfenp1036 \snext0 \sqformat \spriority0 Normal;}{\*\cs10 \additive \ssemihidden \sunhideused \spriority1 Default Paragraph Font;}{\*
+\ts11\tsrowd\trftsWidthB3\trpaddl108\trpaddr108\trpaddfl3\trpaddft3\trpaddfb3\trpaddfr3\tblind0\tblindtype3\tsvertalt\tsbrdrt\tsbrdrl\tsbrdrb\tsbrdrr\tsbrdrdgl\tsbrdrdgr\tsbrdrh\tsbrdrv 
+\ql \li0\ri0\widctlpar\wrapdefault\aspalpha\aspnum\faauto\adjustright\rin0\lin0\itap0 \rtlch\fcs1 \af0\afs20\alang1025 \ltrch\fcs0 \f42\fs20\lang1036\langfe1036\cgrid\langnp1036\langfenp1036 \snext11 \ssemihidden \sunhideused Normal Table;}}
+{\*\rsidtbl \rsid8462784\rsid10028012\rsid16122536\rsid16208621}{\mmathPr\mmathFont34\mbrkBin0\mbrkBinSub0\msmallFrac0\mdispDef1\mlMargin0\mrMargin0\mdefJc1\mwrapIndent1440\mintLim0\mnaryLim1}{\info{\operator BL Concept}
+{\creatim\yr2026\mo7\dy7\hr10\min25}{\revtim\yr2026\mo7\dy27\hr16\min48}{\version1}{\edmins0}{\nofpages2}{\nofwords982}{\nofchars5401}{\nofcharsws6371}{\vern19}}{\*\xmlnstbl {\xmlns1 http://schemas.microsoft.com/office/word/2003/wordml}}
+\paperw12240\paperh15840\margl1417\margr1417\margt1417\margb1417\gutter0\ltrsect 
+\widowctrl\ftnbj\aenddoc\hyphhotz425\trackmoves0\trackformatting1\donotembedsysfont0\relyonvml0\donotembedlingdata1\grfdocevents0\validatexml0\showplaceholdtext0\ignoremixedcontent0\saveinvalidxml0\showxmlerrors0\horzdoc\dghspace120\dgvspace120
+\dghorigin1701\dgvorigin1984\dghshow0\dgvshow3\jcompress\viewkind1\viewscale100\rsidroot16122536 \fet0{\*\wgrffmtfilter 2450}\ilfomacatclnup0\ltrpar \sectd \ltrsect\linex0\sectdefaultcl\sftnbj {\*\pnseclvl1\pnucrm\pnstart1\pnindent720\pnhang {\pntxta .}}
+{\*\pnseclvl2\pnucltr\pnstart1\pnindent720\pnhang {\pntxta .}}{\*\pnseclvl3\pndec\pnstart1\pnindent720\pnhang {\pntxta .}}{\*\pnseclvl4\pnlcltr\pnstart1\pnindent720\pnhang {\pntxta )}}{\*\pnseclvl5\pndec\pnstart1\pnindent720\pnhang {\pntxtb (}{\pntxta )}}
+{\*\pnseclvl6\pnlcltr\pnstart1\pnindent720\pnhang {\pntxtb (}{\pntxta )}}{\*\pnseclvl7\pnlcrm\pnstart1\pnindent720\pnhang {\pntxtb (}{\pntxta )}}{\*\pnseclvl8\pnlcltr\pnstart1\pnindent720\pnhang {\pntxtb (}{\pntxta )}}{\*\pnseclvl9
+\pnlcrm\pnstart1\pnindent720\pnhang {\pntxtb (}{\pntxta )}}\pard\plain \ltrpar\ql \li0\ri0\nowidctlpar\wrapdefault\faauto\rin0\lin0\itap0 \rtlch\fcs1 \af0\afs24\alang1025 \ltrch\fcs0 \f42\fs24\lang1036\langfe1036\kerning2\cgrid\langnp1036\langfenp1036 {
+\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 SPECIFICATION TECHNIQUE FORMELLE
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 Application : Marneza Reservation
+\par Version : 1.0
+\par Date : 07/07/2026
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 1. OBJET DU DOCUMENT
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 Ce document d\'e9crit l}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid16122536 \rquote Ar}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+chitecture technique de l\~plication de r\'e9servation Marneza, les routes front-end et API, les d\'e9pendances entre modules, la structure de base de donn\'e9es, les flux m\'e9tier et les pr\'e9requis de d\'e9ploiement.
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 2. PERIMETRE FONCTIONNEL
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 2.1 Fonctions couvertes
+\par - Consultation des ressources r\'e9servables (salles, appartement)
+\par - Choix du type de location et de la date
+\par - V\'e9rification de disponibilit\'e9 en temps r\'e9el
+\par - Calcul tarifaire avec promotions
+\par - Cr\'e9ation de r\'e9servation en statut pending (hold temporaire)
+\par - Confirmation/annulation via interface administration
+\par - Gestion admin des tarifs et promotions
+\par 
+\par 2.2 Hors p\'e9rim\'e8tre imm\'e9diat
+\par - Paiement en ligne final (structure pr\'e9vue, branchement fournisseur en phase suivante)
+\par - Automatisation compl\'e8te de facturation externe
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 3. STACK TECHNIQUE
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 3.1 Front-end
+\par - Next.js 15
+\par - React 19
+\par - TypeScript
+\par 
+\par 3.2 Back-end
+\par - Node.js
+\par - Express
+\par - Prisma ORM
+\par 
+\par 3.3 Donn\'e9es et services
+\par - PostgreSQL (base relationnelle principale)
+\par - Redis (support jobs/queue)
+\par 
+\par 3.4 S\'e9curit\'e9 / Infrastructure
+\par - JWT pour authentification admin
+\par - Bcrypt pour hash de mots de passe
+\par - Helmet pour en-t\'eates HTTP
+\par - CORS contr\'f4l\'e9 par liste blanche
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 4. ARCHITECTURE LOGIQUE
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 4.1 Mod\'e8le d\'e9cution
+\par Pattern appliqu\'e9 : Route -> Controller -> Service -> Prisma -> PostgreSQL.
+\par 
+\par 4.2 Cha\'eene d\~pel front vers API
+\par Pages Next.js -> composants m\'e9tier -> }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 lib/api-client.ts}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  -> endpoints }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 
+\f45\fs22\kerning0\insrsid6451950 /api/*}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  -> controllers -> services -> base.
+\par 
+\par 4.3 Distribution des responsabilit\'e9s
+\par - Front : UX, formulaires, navigation, affichage disponibilit\'e9/prix
+\par - API : r\'e8gles m\'e9tier, conflits de cr\'e9neaux, calculs, autorisations
+\par - Base : persistance transactionnelle et historique
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 5. ROUTES FRONT-END (NEXT.JS)
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 5.1 Public
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 /}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : accueil
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 /book/[slug]}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : r\'e9servation ressource
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 /book/[slug]/confirm/[id]}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : confirmation r\'e9servation
+\par 
+\par 5.2 Administration
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 /admin/login}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : authentification admin
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 /admin}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : tableau de bord r\'e9servations
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 /admin/calendar}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : calendrier d\'e9taill\'e9
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 /admin/pricing}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : gestion des prix/promotions
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 6. ROUTES API
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 Pr\'e9fixe global : }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 /api}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par 
+\par 6.1 Public
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 POST /api/auth/login}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : connexion admin
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/resources}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : liste des ressources actives
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/resources/:slug}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : d\'e9tail ressource
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/resources/:slug/availability}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : disponibilit\'e9
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/pricing/quote}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : devis tarifaire
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 POST /api/bookings}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : cr\'e9ation r\'e9servation
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/bookings/:id}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : d\'e9tail r\'e9servation
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 POST /api/bookings/:id/cancel}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : annulation
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/health}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : sant\'e9 service
+\par 
+\par 6.2 Administration (JWT requis)
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/auth/me}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : session admin courante
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/admin/bookings}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/admin/bookings/:id}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 POST /api/admin/bookings/:id/confirm}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 POST /api/admin/bookings/:id/cancel}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/admin/calendar}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/admin/stats}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 GET /api/admin/pricing}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 PATCH /api/admin/pricing/:id}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 7. MATRICE D\rquote APPELS (QUI APPELLE QUOI)
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 7.1 C\'f4t\'e9 front
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 BookingWizard.tsx}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  appelle :
+\par   * }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 getQuote()}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  -> }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 
+GET /api/pricing/quote}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par   * }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 getAvailability()}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  (via calendrier) -> }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 
+\f45\fs22\kerning0\insrsid6451950 GET /api/resources/:slug/availability}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par   * }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 createBooking()}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  -> }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 
+POST /api/bookings}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 ConfirmClient}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  appelle :
+\par   * }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 getBooking(id)}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  -> }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 
+GET /api/bookings/:id}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par 
+\par - Modules admin appellent :
+\par   * }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 adminListBookings/adminConfirmBooking/adminCancelBooking}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par   * }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 adminGetCalendar}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par   * }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 adminListPricing/adminUpdatePricing}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par 
+\par 7.2 C\'f4t\'e9 API
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 routes/index.js}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  monte toutes les routes
+\par - Controllers redirigent vers services m\'e9tier
+\par - Services utilisent Prisma (}{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 config/database}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 )
+\par 
+\par 7.3 Jobs
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 expire-pending.job}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  (toutes les 2 min) : pending expir\'e9 -> cancelled
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 sync-odoo.job}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : lanc\'e9 apr\'e8s confirmation admin si activ\'e9
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 8. FLUX METIER DETAILLES
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 8.1 Flux de cr\'e9ation d_e r\'e9servation
+\par 1) Chargement ressource
+\par 2) Choix type/date
+\par 3) Contr\'f4le disponibilit\'e9
+\par 4) Calcul tarif
+\par 5) Cr\'e9ation booking pending + expiresAt
+\par 6) Redirection confirmation
+\par 
+\par 8.2 Flux d\rquote expiration de hold
+\par 1) Job planifi\'e9
+\par 2) Recherche des pending expir\'e9s
+\par 3) Mise \'e0 jour statut cancelled
+\par 
+\par 8.3 Flux de confirmation admin
+\par 1) Admin authentifi\'e9
+\par 2) Action confirm
+\par 3) }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 bookingService.confirm}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par 4) D\'e9clenchement sync externe (si activ\'e9)
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 9. SCHEMA BASE DE DONNEES (NIVEAU FONCTIONNEL)
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 9.1 Entit\'e9s principales
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 resource_types}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : cat\'e9gories de ressources
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 resources}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : ressources r\'e9servables
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 booking_types}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : modes de location
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 pricing_rules}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : prix, promo, p\'e9riodes
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 customers}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : clients
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 bookings}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : r\'e9servations
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 blocked_periods}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  : indisponibilit\'e9s
+\par 
+\par 9.2 Administration/s\'e9curit\'e9
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 users}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 roles}{\rtlch\fcs1 
+\af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 user_roles}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par 
+\par 9.3 Int\'e9gration et extension
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 products}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 product_resource_map}{
+\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 odoo_sync_log}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 payments}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  (pr\'e9vu pour l\rquote int\'e9gration paiement)
+\par 
+\par 9.4 Contraintes notables
+\par - Unicit\'e9 }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 pricing_rules(resourceId, bookingTypeId)}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - Index temporels sur }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 bookings}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  et }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 
+blocked_periods}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - Etats booking : draft, pending, confirmed, cancelled, completed
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 10. SECURITE APPLICATIVE
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 10.1 M\'e9canismes actifs
+\par - Auth admin par JWT
+\par - Hash mot de passe bcrypt
+\par - Protection routes admin par middleware auth
+\par - Helmet + CORS
+\par 
+\par 10.2 Param\'e8tres obligatoires production
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 NODE_ENV=production}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 REQUIRE_AUTH=true}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 JWT_SECRET}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950  fort
+\par - Mot de passe admin fort
+\par - Origines CORS limit\'e9es
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 11. VARIABLES D\rquote ENVIRONNEMENT CRITIQUES
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 APP_URL}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 
+\ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 API_URL}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 NEXT_PUBLIC_API_URL}{\rtlch\fcs1 \af37\afs22 
+\ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 DATABASE_URL}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 REDIS_URL}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 BOOKING_HOLD_MINUTES}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 JWT_SECRET}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 JWT_EXPIRES_IN}{
+\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 REQUIRE_AUTH}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 ADMIN_EMAIL}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 ADMIN_PASSWORD}{
+\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 ODOO_URL}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 ODOO_DB}{\rtlch\fcs1 
+\af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 ODOO_USERNAME}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 
+\ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 ODOO_API_KEY}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 , }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 ODOO_SYNC_ENABLED}{\rtlch\fcs1 \af37\afs22 
+\ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 CORS_ORIGINS}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 12. DEPLOIEMENT - PRE REQUIS
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 12.1 Pr\'e9requis techniques
+\par - Base PostgreSQL production disponible
+\par - Variables environnement inject\'e9es
+\par - HTTPS actif sur domaine
+\par - DNS du sous-domaine r\'e9servation point\'e9 vers l\rquote infrastructure
+\par 
+\par 12.2 S\'e9quence recommand\'e9e
+\par 1) Migrations Prisma
+\par 2) Seed initial
+\par 3) D\'e9marrage API
+\par 4) Build et d\'e9marrage front
+\par 5) Tests E2E fonctionnels
+\par 6) Activation des liens boutique vers app
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 13. ETAT D\rquote AVANCEMENT
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 13.1 D\'e9j\'e0 op\'e9rationnel
+\par - Moteur de disponibilit\'e9
+\par - R\'e9servation + hold
+\par - Admin login + dashboards
+\par - Tarifs dynamiques + promotions
+\par 
+\par 13.2 A finaliser selon roadmap
+\par - Int\'e9gration paiement en ligne compl\'e8te
+\par - Industrialisation d\'e9ploiement production
+\par - Param\'e9trage final des liens boutique
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 14. ANNEXE - CARTOGRAPHIE RAPIDE DES MODULES
+\par }{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 Back-end principal :
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 src/routes/*.js}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 src/controllers/*.js}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 src/services/*.js}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 src/jobs/*.js}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par 
+\par Front-end principal :
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 src/app/**/page.tsx}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 src/components/booking/*}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 src/components/admin/*}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par - }{\rtlch\fcs1 \af45\afs22 \ltrch\fcs0 \f45\fs22\kerning0\insrsid6451950 src/lib/api-client.ts}{\rtlch\fcs1 \af37\afs22 \ltrch\fcs0 \f37\fs22\kerning0\insrsid6451950 
+\par 
+\par }{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid6451950 Fin du document}{\rtlch\fcs1 \ab\af37\afs22 \ltrch\fcs0 \b\f37\fs22\kerning0\insrsid8462784 
+\par }{\*\themedata 504b030414000600080000002100e9de0fbfff0000001c020000130000005b436f6e74656e745f54797065735d2e786d6cac91cb4ec3301045f748fc83e52d4a
+9cb2400825e982c78ec7a27cc0c8992416c9d8b2a755fbf74cd25442a820166c2cd933f79e3be372bd1f07b5c3989ca74aaff2422b24eb1b475da5df374fd9ad
+5689811a183c61a50f98f4babebc2837878049899a52a57be670674cb23d8e90721f90a4d2fa3802cb35762680fd800ecd7551dc18eb899138e3c943d7e503b6
+b01d583deee5f99824e290b4ba3f364eac4a430883b3c092d4eca8f946c916422ecab927f52ea42b89a1cd59c254f919b0e85e6535d135a8de20f20b8c12c3b0
+0c895fcf6720192de6bf3b9e89ecdbd6596cbcdd8eb28e7c365ecc4ec1ff1460f53fe813d3cc7f5b7f020000ffff0300504b030414000600080000002100a5d6
+a7e7c0000000360100000b0000005f72656c732f2e72656c73848fcf6ac3300c87ef85bd83d17d51d2c31825762fa590432fa37d00e1287f68221bdb1bebdb4f
+c7060abb0884a4eff7a93dfeae8bf9e194e720169aaa06c3e2433fcb68e1763dbf7f82c985a4a725085b787086a37bdbb55fbc50d1a33ccd311ba548b6309512
+0f88d94fbc52ae4264d1c910d24a45db3462247fa791715fd71f989e19e0364cd3f51652d73760ae8fa8c9ffb3c330cc9e4fc17faf2ce545046e37944c69e462
+a1a82fe353bd90a865aad41ed0b5b8f9d6fd010000ffff0300504b0304140006000800000021006b799616830000008a0000001c0000007468656d652f746865
+6d652f7468656d654d616e616765722e786d6c0ccc4d0ac3201040e17da17790d93763bb284562b2cbaebbf600439c1a41c7a0d29fdbd7e5e38337cedf14d59b
+4b0d592c9c070d8a65cd2e88b7f07c2ca71ba8da481cc52c6ce1c715e6e97818c9b48d13df49c873517d23d59085adb5dd20d6b52bd521ef2cdd5eb9246a3d8b
+4757e8d3f729e245eb2b260a0238fd010000ffff0300504b0304140006000800000021003bc0a6ea060800000e220000160000007468656d652f7468656d652f
+7468656d65312e786d6cec5acd8b1bc915bf07f23f347d97d5ddfa1e2c2ffaf4ac3d630f96ecb0c792545297a7ba4b749566468485e03de512086c420e59c82d
+8110b290852cb9e4903fc560936cfe88bcaa6ab5aaa492e70313cc323397eed2efbdfad57bafde7b5ddd0f3fbb4aa87781334e58daf6c30781efe174ca66245d
+b4fd97e361a9e97b5ca07486284b71db5f63ee7ff6e8a73f79888e448c13ec817cca8f50db8f85581e95cb7c0ac3883f604b9cc26f73962548c06db628cf3274
+097a135a8e82a05e4e10497d2f4509a81dc7fffa13287b3e9f9329f61f6db40f284c910a2e07a6341b49dd381731b0b3f35022f89af768e65d20daf661a219bb
+1ce32be17b1471013fb4fd40fdf9e5470fcbe82817a2e280ac2137547fb95c2e303b8fd49cd962524c1a0ca266352cf42b0015fbb84153fe17fa14004da7b052
+cdc5d419d6ea4133cab106485f3a74b71a61c5c61bfa2b7b9cc356bd1b552dfd0aa4f557f7f0c1b035e8d72cbc02697c6d0fdf09a26eab62e11548e3eb7bf8ea
+a0d38806165e81624ad2f37d74bdd16cd673740199337aec84b7eaf5a0d1cfe15b144443115d728a394bc5a1584bd06b960d0120811409927a62bdc473348530
+ee2c05e35e9ff025456bdf5ba29471180ea23084d0ab0651f1af2c8e8e3032a4252f60c2f786241f8f4f33b2146dff0968f50dc8bbefbf7ffbe6bbb76ffefef6
+abafdebef9ab774216b1d0aa2cb963942e4cb91ffef8ebff7ef30bef3f7ffbc30f5fffc68de726fefd5f7ef9fe1ffffc907ad86a5b53bcfbedb7efbffbf6ddef
+7ef5ef3f7fedd0dec9d0c4848f4982b9f70c5f7a2f58020b54a6b0f9e349763b89718c8829d149171ca548cee2d03f10b1857eb6461439705d6cdbf15506a9c6
+057cbc7a6d111ec5d94a1087c6a77162014f19a35d9639adf054ce659879bc4a17eec9b395897b81d0856bee1e4a2d2f0f564bc8b1c4a5b217638be61945a940
+0b9c62e1c9dfd839c68ed57d418865d75332cd186773e17d41bc2e224e938cc9c48aa6add03149c02f6b1741f0b7659bd3575e9751d7aafbf8c246c2de40d441
+7e8ca965c6c7682550e252394609350d7e8244ec22395a67531337e0023cbdc094798319e6dc25f33c83f51a4e7f8a20bb39dd7e4ad7898dcc043977e93c418c
+99c83e3befc52859bab02392c626f6737e0e218abc33265cf05366ef10790f7e40e94177bf22d872f7f5d9e025643993d23640e42fabcce1cbc79859f13b5ad3
+39c2ae54d3c9122bc57632e28c8eee6a6185f609c6145da219c6decbcf1d0cba6c69d97c4bfa490c59e518bb02eb09b26355dea798634f3537fb79f284702b64
+4778c10ef0395def249e354a13941dd2fc0cbc6eda7c30c960333ad6f99c4ecf4de033024d20c48bd328cf39e83082fba0d6b31859054cde7377bcae33cb7f37
+d963b02f5f5b346eb02f4106df5a0612bb29f341db8c11b526d806cc1811efc4956e41c472ff5644165725b672cacded4dbb7503744756d39390f49a0ee8ffd7
+f9407ff1eef7df3842f0e3743b6ec556aaba659f7328951cef74378770bb3d4d8f6533f2e9b7347db44acf305491fd7c75dfd1dc7734fe8fbea339b49feffb98
+43ddc67d1fe3437f71dfc7e4472b1fa78fd9b62ed0d5c8e3057dcca30e7d9283673e7342e948ac293ee1ead887c3d3cc6c0883524e1d78e2e20c7019c3a52c73
+3081855b6448c97819133f23221ec568096743a12f952c78ae7ac1bd25e37064a4869dba259eae925336d3479dea6c29d0959523b11d0f6a70e8a4c7e1984a68
+74bd910f4a7eea3c15f82ab60b75ccba2120656f43c298cc26517190686c06af21214fcd3e0e8b96834553aadfb86acf1440adf00a3c6e7bf090def66b554908
+0ec9f9145af399f49376f5c6bbca991fd3d3878c6945001c2bea95c0a97ce1e996e47a707972753ad46ee0698b84728a0e2b9b84b28c6af0780c0fc17974cad1
+9bd0b8adaf5b5b975af4a429d47c10df5b1a8de68758dcd5d720b79b1b686a660a9a7a97b0c723d874be3745cbb63f873363b84c96103c5c3e7221ba80372f53
+91e91d7f97d4b2ccb8e8231e6b8babaca3fd931081338f92a4edcbf5177ea0a94a229a5c0bb6eea74a2e921bee5323075eb7bd8ce7733c15a6df8d1169697d0b
+295e270be7af4afcee6029c956e0ee513cbbf4267495bd401062b54628bd3b231c5e1d84dad53302efc28a4cb68dbf9dca94677ff365948a213d8ee832467949
+31b3b986ab8252d05177850d8cbb7ccd6050c32479259c2c6485358d6a95d3a276690e07cbeef542d27246d6dc164d2badc8b2e94e63d60c9b3ab063cbbb5579
+83d5c6c490d4cc12af73f76ece6d6d92dd4ea3509409307861bfbbd57e83da76328b9a64bc9f8765d2ce47ede2b159e035d46e52258cb45fdfa8ddb15b51249c
+d3c1e09d4a3fc8ed462d0ccd378da5b2b47a6b6ebed76693d7903cfad0e6aea87ed34d53b89351c9976799f2ed84cdd6f925e53ad1689fcba6542269fa02cf3d
+32bb6afb91ab73d46f5bc3bc1b506829268b5721e8ecf66cc11c2f45f5862d8475801741a537a52d5c48a899a1f72e84d589a28bb6b8da5096bd3ae09509b95e
+359836b7145ced5b115efd67087adb91eaec74ee05da5722cf2f70e5ad32d2f67f1ed43ad55e54eb9582666d50aa56aa41a959eb544a9d5aad120e6a61d0ef46
+5f023d1127614d7ff630849740749d7ffca0c6f73e804836efb91e4c595266eacb86b2f2befa00228cac0f20f4d70cde587ee0e0832381563408ab5127ea957a
+fdb05eaa46fd7aa9d9a8744abda8de8f3a50b4ebc3ce97be77a1c061b7df1f0e6b51a9de035c35e8d44a9d6ea557aa3707dd68180eaafd00c079f9b982a718b0
+d9c61670a9783dfa1f000000ffff0300504b0304140006000800000021000dd1909fb60000001b010000270000007468656d652f7468656d652f5f72656c732f
+7468656d654d616e616765722e786d6c2e72656c73848f4d0ac2301484f78277086f6fd3ba109126dd88d0add40384e4350d363f2451eced0dae2c082e8761be
+9969bb979dc9136332de3168aa1a083ae995719ac16db8ec8e4052164e89d93b64b060828e6f37ed1567914b284d262452282e3198720e274a939cd08a54f980
+ae38a38f56e422a3a641c8bbd048f7757da0f19b017cc524bd62107bd5001996509affb3fd381a89672f1f165dfe514173d9850528a2c6cce0239baa4c04ca5b
+babac4df000000ffff0300504b01022d0014000600080000002100e9de0fbfff0000001c0200001300000000000000000000000000000000005b436f6e74656e
+745f54797065735d2e786d6c504b01022d0014000600080000002100a5d6a7e7c0000000360100000b00000000000000000000000000300100005f72656c732f
+2e72656c73504b01022d00140006000800000021006b799616830000008a0000001c00000000000000000000000000190200007468656d652f7468656d652f74
+68656d654d616e616765722e786d6c504b01022d00140006000800000021003bc0a6ea060800000e2200001600000000000000000000000000d6020000746865
+6d652f7468656d652f7468656d65312e786d6c504b01022d00140006000800000021000dd1909fb60000001b0100002700000000000000000000000000100b00007468656d652f7468656d652f5f72656c732f7468656d654d616e616765722e786d6c2e72656c73504b050600000000050005005d0100000b0c00000000}
+{\*\colorschememapping 3c3f786d6c2076657273696f6e3d22312e302220656e636f64696e673d225554462d3822207374616e64616c6f6e653d22796573223f3e0d0a3c613a636c724d
+617020786d6c6e733a613d22687474703a2f2f736368656d61732e6f70656e786d6c666f726d6174732e6f72672f64726177696e676d6c2f323030362f6d6169
+6e22206267313d226c743122207478313d22646b3122206267323d226c743222207478323d22646b322220616363656e74313d22616363656e74312220616363
+656e74323d22616363656e74322220616363656e74333d22616363656e74332220616363656e74343d22616363656e74342220616363656e74353d22616363656e74352220616363656e74363d22616363656e74362220686c696e6b3d22686c696e6b2220666f6c486c696e6b3d22666f6c486c696e6b222f3e}
+{\*\latentstyles\lsdstimax376\lsdlockeddef0\lsdsemihiddendef0\lsdunhideuseddef0\lsdqformatdef0\lsdprioritydef99{\lsdlockedexcept \lsdqformat1 \lsdpriority0 \lsdlocked0 Normal;\lsdqformat1 \lsdpriority9 \lsdlocked0 heading 1;
+\lsdsemihidden1 \lsdunhideused1 \lsdqformat1 \lsdpriority9 \lsdlocked0 heading 2;\lsdsemihidden1 \lsdunhideused1 \lsdqformat1 \lsdpriority9 \lsdlocked0 heading 3;\lsdsemihidden1 \lsdunhideused1 \lsdqformat1 \lsdpriority9 \lsdlocked0 heading 4;
+\lsdsemihidden1 \lsdunhideused1 \lsdqformat1 \lsdpriority9 \lsdlocked0 heading 5;\lsdsemihidden1 \lsdunhideused1 \lsdqformat1 \lsdpriority9 \lsdlocked0 heading 6;\lsdsemihidden1 \lsdunhideused1 \lsdqformat1 \lsdpriority9 \lsdlocked0 heading 7;
+\lsdsemihidden1 \lsdunhideused1 \lsdqformat1 \lsdpriority9 \lsdlocked0 heading 8;\lsdsemihidden1 \lsdunhideused1 \lsdqformat1 \lsdpriority9 \lsdlocked0 heading 9;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 index 1;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 index 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 index 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 index 4;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 index 5;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 index 6;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 index 7;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 index 8;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 index 9;
+\lsdsemihidden1 \lsdunhideused1 \lsdpriority39 \lsdlocked0 toc 1;\lsdsemihidden1 \lsdunhideused1 \lsdpriority39 \lsdlocked0 toc 2;\lsdsemihidden1 \lsdunhideused1 \lsdpriority39 \lsdlocked0 toc 3;
+\lsdsemihidden1 \lsdunhideused1 \lsdpriority39 \lsdlocked0 toc 4;\lsdsemihidden1 \lsdunhideused1 \lsdpriority39 \lsdlocked0 toc 5;\lsdsemihidden1 \lsdunhideused1 \lsdpriority39 \lsdlocked0 toc 6;
+\lsdsemihidden1 \lsdunhideused1 \lsdpriority39 \lsdlocked0 toc 7;\lsdsemihidden1 \lsdunhideused1 \lsdpriority39 \lsdlocked0 toc 8;\lsdsemihidden1 \lsdunhideused1 \lsdpriority39 \lsdlocked0 toc 9;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Normal Indent;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 footnote text;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 annotation text;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 header;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 footer;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 index heading;\lsdsemihidden1 \lsdunhideused1 \lsdqformat1 \lsdpriority35 \lsdlocked0 caption;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 table of figures;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 envelope address;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 envelope return;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 footnote reference;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 annotation reference;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 line number;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 page number;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 endnote reference;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 endnote text;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 table of authorities;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 macro;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 toa heading;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Bullet;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Number;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List 3;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List 4;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List 5;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Bullet 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Bullet 3;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Bullet 4;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Bullet 5;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Number 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Number 3;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Number 4;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Number 5;\lsdqformat1 \lsdpriority10 \lsdlocked0 Title;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Closing;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Signature;\lsdsemihidden1 \lsdunhideused1 \lsdpriority1 \lsdlocked0 Default Paragraph Font;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Body Text;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Body Text Indent;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Continue;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Continue 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Continue 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Continue 4;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 List Continue 5;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Message Header;\lsdqformat1 \lsdpriority11 \lsdlocked0 Subtitle;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Salutation;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Date;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Body Text First Indent;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Body Text First Indent 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Note Heading;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Body Text 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Body Text 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Body Text Indent 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Body Text Indent 3;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Block Text;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Hyperlink;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 FollowedHyperlink;\lsdqformat1 \lsdpriority22 \lsdlocked0 Strong;
+\lsdqformat1 \lsdpriority20 \lsdlocked0 Emphasis;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Document Map;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Plain Text;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 E-mail Signature;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Top of Form;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Bottom of Form;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Normal (Web);\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Acronym;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Address;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Cite;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Code;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Definition;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Keyboard;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Preformatted;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Sample;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Typewriter;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 HTML Variable;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Normal Table;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 annotation subject;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 No List;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Outline List 1;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Outline List 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Outline List 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Simple 1;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Simple 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Simple 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Classic 1;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Classic 2;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Classic 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Classic 4;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Colorful 1;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Colorful 2;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Colorful 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Columns 1;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Columns 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Columns 3;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Columns 4;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Columns 5;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Grid 1;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Grid 2;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Grid 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Grid 4;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Grid 5;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Grid 6;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Grid 7;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Grid 8;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table List 1;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table List 2;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table List 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table List 4;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table List 5;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table List 6;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table List 7;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table List 8;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table 3D effects 1;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table 3D effects 2;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table 3D effects 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Contemporary;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Elegant;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Professional;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Subtle 1;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Subtle 2;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Web 1;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Web 2;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Web 3;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Balloon Text;\lsdpriority39 \lsdlocked0 Table Grid;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Table Theme;\lsdsemihidden1 \lsdlocked0 Placeholder Text;
+\lsdqformat1 \lsdpriority1 \lsdlocked0 No Spacing;\lsdpriority60 \lsdlocked0 Light Shading;\lsdpriority61 \lsdlocked0 Light List;\lsdpriority62 \lsdlocked0 Light Grid;\lsdpriority63 \lsdlocked0 Medium Shading 1;\lsdpriority64 \lsdlocked0 Medium Shading 2;
+\lsdpriority65 \lsdlocked0 Medium List 1;\lsdpriority66 \lsdlocked0 Medium List 2;\lsdpriority67 \lsdlocked0 Medium Grid 1;\lsdpriority68 \lsdlocked0 Medium Grid 2;\lsdpriority69 \lsdlocked0 Medium Grid 3;\lsdpriority70 \lsdlocked0 Dark List;
+\lsdpriority71 \lsdlocked0 Colorful Shading;\lsdpriority72 \lsdlocked0 Colorful List;\lsdpriority73 \lsdlocked0 Colorful Grid;\lsdpriority60 \lsdlocked0 Light Shading Accent 1;\lsdpriority61 \lsdlocked0 Light List Accent 1;
+\lsdpriority62 \lsdlocked0 Light Grid Accent 1;\lsdpriority63 \lsdlocked0 Medium Shading 1 Accent 1;\lsdpriority64 \lsdlocked0 Medium Shading 2 Accent 1;\lsdpriority65 \lsdlocked0 Medium List 1 Accent 1;\lsdsemihidden1 \lsdlocked0 Revision;
+\lsdqformat1 \lsdpriority34 \lsdlocked0 List Paragraph;\lsdqformat1 \lsdpriority29 \lsdlocked0 Quote;\lsdqformat1 \lsdpriority30 \lsdlocked0 Intense Quote;\lsdpriority66 \lsdlocked0 Medium List 2 Accent 1;\lsdpriority67 \lsdlocked0 Medium Grid 1 Accent 1;
+\lsdpriority68 \lsdlocked0 Medium Grid 2 Accent 1;\lsdpriority69 \lsdlocked0 Medium Grid 3 Accent 1;\lsdpriority70 \lsdlocked0 Dark List Accent 1;\lsdpriority71 \lsdlocked0 Colorful Shading Accent 1;\lsdpriority72 \lsdlocked0 Colorful List Accent 1;
+\lsdpriority73 \lsdlocked0 Colorful Grid Accent 1;\lsdpriority60 \lsdlocked0 Light Shading Accent 2;\lsdpriority61 \lsdlocked0 Light List Accent 2;\lsdpriority62 \lsdlocked0 Light Grid Accent 2;\lsdpriority63 \lsdlocked0 Medium Shading 1 Accent 2;
+\lsdpriority64 \lsdlocked0 Medium Shading 2 Accent 2;\lsdpriority65 \lsdlocked0 Medium List 1 Accent 2;\lsdpriority66 \lsdlocked0 Medium List 2 Accent 2;\lsdpriority67 \lsdlocked0 Medium Grid 1 Accent 2;\lsdpriority68 \lsdlocked0 Medium Grid 2 Accent 2;
+\lsdpriority69 \lsdlocked0 Medium Grid 3 Accent 2;\lsdpriority70 \lsdlocked0 Dark List Accent 2;\lsdpriority71 \lsdlocked0 Colorful Shading Accent 2;\lsdpriority72 \lsdlocked0 Colorful List Accent 2;\lsdpriority73 \lsdlocked0 Colorful Grid Accent 2;
+\lsdpriority60 \lsdlocked0 Light Shading Accent 3;\lsdpriority61 \lsdlocked0 Light List Accent 3;\lsdpriority62 \lsdlocked0 Light Grid Accent 3;\lsdpriority63 \lsdlocked0 Medium Shading 1 Accent 3;\lsdpriority64 \lsdlocked0 Medium Shading 2 Accent 3;
+\lsdpriority65 \lsdlocked0 Medium List 1 Accent 3;\lsdpriority66 \lsdlocked0 Medium List 2 Accent 3;\lsdpriority67 \lsdlocked0 Medium Grid 1 Accent 3;\lsdpriority68 \lsdlocked0 Medium Grid 2 Accent 3;\lsdpriority69 \lsdlocked0 Medium Grid 3 Accent 3;
+\lsdpriority70 \lsdlocked0 Dark List Accent 3;\lsdpriority71 \lsdlocked0 Colorful Shading Accent 3;\lsdpriority72 \lsdlocked0 Colorful List Accent 3;\lsdpriority73 \lsdlocked0 Colorful Grid Accent 3;\lsdpriority60 \lsdlocked0 Light Shading Accent 4;
+\lsdpriority61 \lsdlocked0 Light List Accent 4;\lsdpriority62 \lsdlocked0 Light Grid Accent 4;\lsdpriority63 \lsdlocked0 Medium Shading 1 Accent 4;\lsdpriority64 \lsdlocked0 Medium Shading 2 Accent 4;\lsdpriority65 \lsdlocked0 Medium List 1 Accent 4;
+\lsdpriority66 \lsdlocked0 Medium List 2 Accent 4;\lsdpriority67 \lsdlocked0 Medium Grid 1 Accent 4;\lsdpriority68 \lsdlocked0 Medium Grid 2 Accent 4;\lsdpriority69 \lsdlocked0 Medium Grid 3 Accent 4;\lsdpriority70 \lsdlocked0 Dark List Accent 4;
+\lsdpriority71 \lsdlocked0 Colorful Shading Accent 4;\lsdpriority72 \lsdlocked0 Colorful List Accent 4;\lsdpriority73 \lsdlocked0 Colorful Grid Accent 4;\lsdpriority60 \lsdlocked0 Light Shading Accent 5;\lsdpriority61 \lsdlocked0 Light List Accent 5;
+\lsdpriority62 \lsdlocked0 Light Grid Accent 5;\lsdpriority63 \lsdlocked0 Medium Shading 1 Accent 5;\lsdpriority64 \lsdlocked0 Medium Shading 2 Accent 5;\lsdpriority65 \lsdlocked0 Medium List 1 Accent 5;\lsdpriority66 \lsdlocked0 Medium List 2 Accent 5;
+\lsdpriority67 \lsdlocked0 Medium Grid 1 Accent 5;\lsdpriority68 \lsdlocked0 Medium Grid 2 Accent 5;\lsdpriority69 \lsdlocked0 Medium Grid 3 Accent 5;\lsdpriority70 \lsdlocked0 Dark List Accent 5;\lsdpriority71 \lsdlocked0 Colorful Shading Accent 5;
+\lsdpriority72 \lsdlocked0 Colorful List Accent 5;\lsdpriority73 \lsdlocked0 Colorful Grid Accent 5;\lsdpriority60 \lsdlocked0 Light Shading Accent 6;\lsdpriority61 \lsdlocked0 Light List Accent 6;\lsdpriority62 \lsdlocked0 Light Grid Accent 6;
+\lsdpriority63 \lsdlocked0 Medium Shading 1 Accent 6;\lsdpriority64 \lsdlocked0 Medium Shading 2 Accent 6;\lsdpriority65 \lsdlocked0 Medium List 1 Accent 6;\lsdpriority66 \lsdlocked0 Medium List 2 Accent 6;
+\lsdpriority67 \lsdlocked0 Medium Grid 1 Accent 6;\lsdpriority68 \lsdlocked0 Medium Grid 2 Accent 6;\lsdpriority69 \lsdlocked0 Medium Grid 3 Accent 6;\lsdpriority70 \lsdlocked0 Dark List Accent 6;\lsdpriority71 \lsdlocked0 Colorful Shading Accent 6;
+\lsdpriority72 \lsdlocked0 Colorful List Accent 6;\lsdpriority73 \lsdlocked0 Colorful Grid Accent 6;\lsdqformat1 \lsdpriority19 \lsdlocked0 Subtle Emphasis;\lsdqformat1 \lsdpriority21 \lsdlocked0 Intense Emphasis;
+\lsdqformat1 \lsdpriority31 \lsdlocked0 Subtle Reference;\lsdqformat1 \lsdpriority32 \lsdlocked0 Intense Reference;\lsdqformat1 \lsdpriority33 \lsdlocked0 Book Title;\lsdsemihidden1 \lsdunhideused1 \lsdpriority37 \lsdlocked0 Bibliography;
+\lsdsemihidden1 \lsdunhideused1 \lsdqformat1 \lsdpriority39 \lsdlocked0 TOC Heading;\lsdpriority41 \lsdlocked0 Plain Table 1;\lsdpriority42 \lsdlocked0 Plain Table 2;\lsdpriority43 \lsdlocked0 Plain Table 3;\lsdpriority44 \lsdlocked0 Plain Table 4;
+\lsdpriority45 \lsdlocked0 Plain Table 5;\lsdpriority40 \lsdlocked0 Grid Table Light;\lsdpriority46 \lsdlocked0 Grid Table 1 Light;\lsdpriority47 \lsdlocked0 Grid Table 2;\lsdpriority48 \lsdlocked0 Grid Table 3;\lsdpriority49 \lsdlocked0 Grid Table 4;
+\lsdpriority50 \lsdlocked0 Grid Table 5 Dark;\lsdpriority51 \lsdlocked0 Grid Table 6 Colorful;\lsdpriority52 \lsdlocked0 Grid Table 7 Colorful;\lsdpriority46 \lsdlocked0 Grid Table 1 Light Accent 1;\lsdpriority47 \lsdlocked0 Grid Table 2 Accent 1;
+\lsdpriority48 \lsdlocked0 Grid Table 3 Accent 1;\lsdpriority49 \lsdlocked0 Grid Table 4 Accent 1;\lsdpriority50 \lsdlocked0 Grid Table 5 Dark Accent 1;\lsdpriority51 \lsdlocked0 Grid Table 6 Colorful Accent 1;
+\lsdpriority52 \lsdlocked0 Grid Table 7 Colorful Accent 1;\lsdpriority46 \lsdlocked0 Grid Table 1 Light Accent 2;\lsdpriority47 \lsdlocked0 Grid Table 2 Accent 2;\lsdpriority48 \lsdlocked0 Grid Table 3 Accent 2;
+\lsdpriority49 \lsdlocked0 Grid Table 4 Accent 2;\lsdpriority50 \lsdlocked0 Grid Table 5 Dark Accent 2;\lsdpriority51 \lsdlocked0 Grid Table 6 Colorful Accent 2;\lsdpriority52 \lsdlocked0 Grid Table 7 Colorful Accent 2;
+\lsdpriority46 \lsdlocked0 Grid Table 1 Light Accent 3;\lsdpriority47 \lsdlocked0 Grid Table 2 Accent 3;\lsdpriority48 \lsdlocked0 Grid Table 3 Accent 3;\lsdpriority49 \lsdlocked0 Grid Table 4 Accent 3;
+\lsdpriority50 \lsdlocked0 Grid Table 5 Dark Accent 3;\lsdpriority51 \lsdlocked0 Grid Table 6 Colorful Accent 3;\lsdpriority52 \lsdlocked0 Grid Table 7 Colorful Accent 3;\lsdpriority46 \lsdlocked0 Grid Table 1 Light Accent 4;
+\lsdpriority47 \lsdlocked0 Grid Table 2 Accent 4;\lsdpriority48 \lsdlocked0 Grid Table 3 Accent 4;\lsdpriority49 \lsdlocked0 Grid Table 4 Accent 4;\lsdpriority50 \lsdlocked0 Grid Table 5 Dark Accent 4;
+\lsdpriority51 \lsdlocked0 Grid Table 6 Colorful Accent 4;\lsdpriority52 \lsdlocked0 Grid Table 7 Colorful Accent 4;\lsdpriority46 \lsdlocked0 Grid Table 1 Light Accent 5;\lsdpriority47 \lsdlocked0 Grid Table 2 Accent 5;
+\lsdpriority48 \lsdlocked0 Grid Table 3 Accent 5;\lsdpriority49 \lsdlocked0 Grid Table 4 Accent 5;\lsdpriority50 \lsdlocked0 Grid Table 5 Dark Accent 5;\lsdpriority51 \lsdlocked0 Grid Table 6 Colorful Accent 5;
+\lsdpriority52 \lsdlocked0 Grid Table 7 Colorful Accent 5;\lsdpriority46 \lsdlocked0 Grid Table 1 Light Accent 6;\lsdpriority47 \lsdlocked0 Grid Table 2 Accent 6;\lsdpriority48 \lsdlocked0 Grid Table 3 Accent 6;
+\lsdpriority49 \lsdlocked0 Grid Table 4 Accent 6;\lsdpriority50 \lsdlocked0 Grid Table 5 Dark Accent 6;\lsdpriority51 \lsdlocked0 Grid Table 6 Colorful Accent 6;\lsdpriority52 \lsdlocked0 Grid Table 7 Colorful Accent 6;
+\lsdpriority46 \lsdlocked0 List Table 1 Light;\lsdpriority47 \lsdlocked0 List Table 2;\lsdpriority48 \lsdlocked0 List Table 3;\lsdpriority49 \lsdlocked0 List Table 4;\lsdpriority50 \lsdlocked0 List Table 5 Dark;
+\lsdpriority51 \lsdlocked0 List Table 6 Colorful;\lsdpriority52 \lsdlocked0 List Table 7 Colorful;\lsdpriority46 \lsdlocked0 List Table 1 Light Accent 1;\lsdpriority47 \lsdlocked0 List Table 2 Accent 1;\lsdpriority48 \lsdlocked0 List Table 3 Accent 1;
+\lsdpriority49 \lsdlocked0 List Table 4 Accent 1;\lsdpriority50 \lsdlocked0 List Table 5 Dark Accent 1;\lsdpriority51 \lsdlocked0 List Table 6 Colorful Accent 1;\lsdpriority52 \lsdlocked0 List Table 7 Colorful Accent 1;
+\lsdpriority46 \lsdlocked0 List Table 1 Light Accent 2;\lsdpriority47 \lsdlocked0 List Table 2 Accent 2;\lsdpriority48 \lsdlocked0 List Table 3 Accent 2;\lsdpriority49 \lsdlocked0 List Table 4 Accent 2;
+\lsdpriority50 \lsdlocked0 List Table 5 Dark Accent 2;\lsdpriority51 \lsdlocked0 List Table 6 Colorful Accent 2;\lsdpriority52 \lsdlocked0 List Table 7 Colorful Accent 2;\lsdpriority46 \lsdlocked0 List Table 1 Light Accent 3;
+\lsdpriority47 \lsdlocked0 List Table 2 Accent 3;\lsdpriority48 \lsdlocked0 List Table 3 Accent 3;\lsdpriority49 \lsdlocked0 List Table 4 Accent 3;\lsdpriority50 \lsdlocked0 List Table 5 Dark Accent 3;
+\lsdpriority51 \lsdlocked0 List Table 6 Colorful Accent 3;\lsdpriority52 \lsdlocked0 List Table 7 Colorful Accent 3;\lsdpriority46 \lsdlocked0 List Table 1 Light Accent 4;\lsdpriority47 \lsdlocked0 List Table 2 Accent 4;
+\lsdpriority48 \lsdlocked0 List Table 3 Accent 4;\lsdpriority49 \lsdlocked0 List Table 4 Accent 4;\lsdpriority50 \lsdlocked0 List Table 5 Dark Accent 4;\lsdpriority51 \lsdlocked0 List Table 6 Colorful Accent 4;
+\lsdpriority52 \lsdlocked0 List Table 7 Colorful Accent 4;\lsdpriority46 \lsdlocked0 List Table 1 Light Accent 5;\lsdpriority47 \lsdlocked0 List Table 2 Accent 5;\lsdpriority48 \lsdlocked0 List Table 3 Accent 5;
+\lsdpriority49 \lsdlocked0 List Table 4 Accent 5;\lsdpriority50 \lsdlocked0 List Table 5 Dark Accent 5;\lsdpriority51 \lsdlocked0 List Table 6 Colorful Accent 5;\lsdpriority52 \lsdlocked0 List Table 7 Colorful Accent 5;
+\lsdpriority46 \lsdlocked0 List Table 1 Light Accent 6;\lsdpriority47 \lsdlocked0 List Table 2 Accent 6;\lsdpriority48 \lsdlocked0 List Table 3 Accent 6;\lsdpriority49 \lsdlocked0 List Table 4 Accent 6;
+\lsdpriority50 \lsdlocked0 List Table 5 Dark Accent 6;\lsdpriority51 \lsdlocked0 List Table 6 Colorful Accent 6;\lsdpriority52 \lsdlocked0 List Table 7 Colorful Accent 6;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Mention;
+\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Smart Hyperlink;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Hashtag;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Unresolved Mention;\lsdsemihidden1 \lsdunhideused1 \lsdlocked0 Smart Link;}}{\*\datastore 01050000
+02000000180000004d73786d6c322e534158584d4c5265616465722e362e3000000000000000000000060000
+d0cf11e0a1b11ae1000000000000000000000000000000003e000300feff090006000000000000000000000001000000010000000000000000100000feffffff00000000feffffff0000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+fffffffffffffffffdfffffffeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ffffffffffffffffffffffffffffffff52006f006f007400200045006e00740072007900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000016000500ffffffffffffffffffffffff0c6ad98892f1d411a65f0040963251e5000000000000000000000000b04b
+9a0ed71ddd01feffffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffff000000000000000000000000000000000000000000000000
+0000000000000000000000000000000000000000000000000105000000000000}}

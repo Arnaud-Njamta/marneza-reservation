@@ -1,4 +1,5 @@
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PriceDisplay } from '@/components/booking/PriceDisplay';
 import { getResources } from '@/lib/api-client';
 import { getResourceMinPrice, ODOO_SHOP_URL } from '@/lib/odoo-shop';
@@ -9,25 +10,38 @@ const FALLBACK = [
   { slug: 'appartement', name: 'Appartement Marneza', desc: 'Location jour ou nuit' },
 ];
 
-export default async function HomePage() {
-  let cards = FALLBACK.map((r) => ({ ...r, minPrice: null as ReturnType<typeof getResourceMinPrice> }));
+type Card = {
+  slug: string;
+  name: string;
+  desc: string;
+  minPrice: ReturnType<typeof getResourceMinPrice>;
+};
 
-  try {
-    const resources = await getResources();
-    if (resources.length) {
-      cards = resources.map((r) => {
-        const fallback = FALLBACK.find((f) => f.slug === r.slug);
-        return {
-          slug: r.slug,
-          name: r.name,
-          desc: fallback?.desc ?? (r.description ?? ''),
-          minPrice: getResourceMinPrice(r),
-        };
+export function HomePage() {
+  const [cards, setCards] = useState<Card[]>(
+    FALLBACK.map((r) => ({ ...r, minPrice: null }))
+  );
+
+  useEffect(() => {
+    getResources()
+      .then((resources) => {
+        if (!resources.length) return;
+        setCards(
+          resources.map((r) => {
+            const fallback = FALLBACK.find((f) => f.slug === r.slug);
+            return {
+              slug: r.slug,
+              name: r.name,
+              desc: fallback?.desc ?? (r.description ?? ''),
+              minPrice: getResourceMinPrice(r),
+            };
+          })
+        );
+      })
+      .catch(() => {
+        /* accueil dégradé */
       });
-    }
-  } catch {
-    // Accueil dégradé sans API : libellés sans prix figés.
-  }
+  }, []);
 
   return (
     <main className="container page-main">
@@ -53,7 +67,7 @@ export default async function HomePage() {
       <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {cards.map((r) => (
           <li key={r.slug}>
-            <Link href={`/book/${r.slug}`} className="card resource-card">
+            <Link to={`/book/${r.slug}`} className="card resource-card">
               <strong style={{ fontSize: '1.1rem', fontFamily: 'var(--font-manrope)' }}>
                 {r.name}
               </strong>

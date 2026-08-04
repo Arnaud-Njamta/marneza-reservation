@@ -1,38 +1,27 @@
-'use client';
-
 import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authMe, getAdminToken } from '@/lib/auth';
 
 type Props = { children: React.ReactNode };
 
 export function AdminAuthGate({ children }: Props) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [ready, setReady] = useState(pathname === '/admin/login');
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (pathname === '/admin/login') {
-      setReady(true);
-      return;
-    }
-
     const token = getAdminToken();
     if (!token) {
-      router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
+      navigate(`/admin/login?next=${encodeURIComponent(pathname)}`, { replace: true });
       return;
     }
 
     authMe()
       .then(() => setReady(true))
       .catch(() => {
-        router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
+        navigate(`/admin/login?next=${encodeURIComponent(pathname)}`, { replace: true });
       });
-  }, [pathname, router]);
-
-  if (pathname === '/admin/login') {
-    return <>{children}</>;
-  }
+  }, [pathname, navigate]);
 
   if (!ready) {
     return (

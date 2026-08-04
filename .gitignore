@@ -6,4 +6,5 @@ dist/
 *.log
 .DS_Store
 coverage/
+uploads/
 apps/api/prisma/migrations/**/migration_lock.toml

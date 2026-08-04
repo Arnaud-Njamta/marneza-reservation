@@ -1,6 +1,6 @@
 import { AdminAccountForm } from '@/components/admin/AdminAccountForm';
 
-export default function AdminAccountPage() {
+export function AdminAccountPage() {
   return (
     <main className="container-wide page-main">
       <p className="page-eyebrow">Administration</p>

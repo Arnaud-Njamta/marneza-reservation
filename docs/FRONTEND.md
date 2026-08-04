@@ -1,42 +1,45 @@
-# Frontend — réservation (Sprint 6)
+# Frontend — réservation (React + Vite)
 
-## Alignement visuel Odoo
+## Stack
 
-L'app reprend le thème **marneza.odoo.com** (Odoo nano-1) :
+| Outil | Rôle |
+|-------|------|
+| React 19 | UI |
+| Vite 6 | Build → fichiers statiques (`dist/`) |
+| React Router 7 | Routes `/`, `/book/:slug`, `/admin/*` |
 
-| Élément | Valeur |
-|---------|--------|
-| Orange primaire | `#e33a07` |
-| Header / Footer | `#0d0d0d` |
-| Liens nav | `#fb8f6f` |
-| Police corps | Inter |
-| Police titres / boutons | Manrope |
-| Boutons | Pill (`border-radius: 10rem`) |
-
-Tokens : `apps/web/src/lib/marneza-theme.ts`
+Alignement visuel Odoo : `src/lib/marneza-theme.ts`, `src/globals.css`
 
 ## Pages
 
-| URL | Composant | Rôle |
-|-----|-----------|------|
-| `/` | `app/page.tsx` | Liste des 3 espaces |
-| `/book/[slug]` | `BookingWizard.tsx` | Calendrier + formulaire |
-| `/book/[slug]/confirm/[id]` | `ConfirmClient.tsx` | Récap + timer 15 min |
+| URL | Composant |
+|-----|-----------|
+| `/` | `pages/HomePage.tsx` |
+| `/book/:slug` | `pages/BookPage.tsx` + `BookingWizard` |
+| `/book/:slug/confirm/:id` | `pages/ConfirmPage.tsx` |
+| `/admin/login` | `pages/admin/AdminLoginPage.tsx` |
+| `/admin` | `pages/admin/AdminPage.tsx` |
+| `/admin/calendar` | `pages/admin/AdminCalendarPage.tsx` |
+| `/admin/pricing` | `pages/admin/AdminPricingPage.tsx` |
+| `/admin/terms` | `pages/admin/AdminTermsPage.tsx` |
+| `/admin/account` | `pages/admin/AdminAccountPage.tsx` |
 
-## Flux client
-
-```
-/book/espace-polyvalent
-  → choix type + date + coordonnées
-  → POST /api/bookings
-  → /book/.../confirm/:id (timer)
-```
-
-## Lancer
+## Lancer en dev
 
 ```bash
+npm run dev:api   # port 4000
 npm run dev:web   # port 3000
-npm run dev:api   # port 4000 (requis)
 ```
 
-Variable : `NEXT_PUBLIC_API_URL=http://localhost:4000` (défaut)
+Variable : `VITE_API_URL=http://localhost:4000` (`apps/web/.env.development`)
+
+## Build production (FileZilla)
+
+```bash
+npm run build --workspace=apps/web
+```
+
+Uploader `apps/web/dist/` sur l’hébergement web IONOS. Le fichier `public/.htaccess` gère le routage SPA (Apache).
+
+Variable build : `VITE_API_URL=https://marneza.blconcept-yala.com` (`apps/web/.env.production`)
+— même modèle que Yaya (`VITE_API_URL=https://yaya.blconcept-yala.com`).

@@ -122,6 +122,22 @@ async function confirmPayment(req, res, next) {
   }
 }
 
+async function downloadPaymentProof(req, res, next) {
+  try {
+    const booking = await bookingService.getById(req.params.id);
+    const proofService = require('../services/payment-proof.service');
+    const file = proofService.getProofFile(booking);
+    res.setHeader('Content-Type', file.mime);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(file.name)}"`
+    );
+    require('fs').createReadStream(file.absolutePath).pipe(res);
+  } catch (err) {
+    next(err);
+  }
+}
+
 /**
  * @route POST /api/admin/bookings/:id/cancel
  */
@@ -473,6 +489,7 @@ module.exports = {
   getBooking,
   sendInvoice,
   confirmPayment,
+  downloadPaymentProof,
   cancelBooking,
   refuseBooking,
   updateBookingStatus,

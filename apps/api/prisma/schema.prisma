@@ -148,6 +148,10 @@ model Booking {
   termsAcceptedAt DateTime?
   invoiceSentAt   DateTime?
   paymentClaimedAt DateTime?
+  paymentProofPath String?   // chemin relatif uploads/payment-proofs/...
+  paymentProofMime String?
+  paymentProofName String?   // nom fichier original (PDF / image)
+  paymentProofUploadedAt DateTime?
   reminded3DaysAt DateTime?
   reminded1DayAt  DateTime?
   remindedTodayAt DateTime?

@@ -1,6 +1,4 @@
-'use client';
-
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 import { useCallback, useState } from 'react';
 import { adminGetUpcoming } from '@/lib/api-client';
 import type { UpcomingBooking } from '@/types/api';
@@ -33,7 +31,7 @@ export function AdminUpcomingAlerts() {
     <section className="admin-upcoming">
       <div className="admin-upcoming__header">
         <h2>Réservations à venir</h2>
-        <Link href="/admin/calendar" className="admin-upcoming__link">
+        <Link to="/admin/calendar" className="admin-upcoming__link">
           Voir le calendrier →
         </Link>
       </div>

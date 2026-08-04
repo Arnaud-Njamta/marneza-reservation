@@ -1,6 +1,6 @@
 import { AdminRentalTerms } from '@/components/admin/AdminRentalTerms';
 
-export default function AdminTermsPage() {
+export function AdminTermsPage() {
   return (
     <main className="container-wide page-main admin-page">
       <h1 className="page-title">Conditions de location</h1>

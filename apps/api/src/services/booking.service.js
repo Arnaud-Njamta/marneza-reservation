@@ -438,6 +438,10 @@ async function claimPaymentByClient(id) {
     console.error('[mail] Echec notification paiement signalé', id, err?.message || err);
   });
 
+  mailService.sendClientPaymentClaimedAckEmail(updated).catch((err) => {
+    console.error('[mail] Echec ack client paiement signalé', id, err?.message || err);
+  });
+
   return updated;
 }
 

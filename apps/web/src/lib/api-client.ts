@@ -208,6 +208,57 @@ export function claimPayment(id: string) {
   return bookingRequest<Booking>(id, `/api/bookings/${id}/claim-payment`, { method: 'POST' });
 }
 
+/** @route POST /api/bookings/:id/payment-proof — PDF ou capture */
+export async function uploadPaymentProof(id: string, file: File) {
+  const token = getBookingToken(id);
+  if (!token) {
+    throw new Error('Lien de réservation invalide — utilisez le lien reçu par email.');
+  }
+  const form = new FormData();
+  form.append('proof', file);
+  const url = `${resolveApiBase()}/api/bookings/${id}/payment-proof?token=${encodeURIComponent(token)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'X-Booking-Token': token },
+    body: form,
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json?.error?.message || 'Upload impossible');
+  }
+  return (json.data ?? json) as Booking;
+}
+
+/** URL de téléchargement preuve (client) */
+export function paymentProofUrl(id: string) {
+  const token = getBookingToken(id);
+  if (!token) return null;
+  return `${resolveApiBase()}/api/bookings/${id}/payment-proof?token=${encodeURIComponent(token)}`;
+}
+
+/** URL admin pour ouvrir la preuve */
+export function adminPaymentProofUrl(id: string) {
+  const token = getAdminToken();
+  if (!token) return null;
+  return `${resolveApiBase()}/api/admin/bookings/${id}/payment-proof`;
+}
+
+export async function openAdminPaymentProof(id: string) {
+  const token = getAdminToken();
+  if (!token) throw new Error('Non connecté');
+  const res = await fetch(`${resolveApiBase()}/api/admin/bookings/${id}/payment-proof`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json?.error?.message || 'Preuve introuvable');
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 // ─── Admin ─────────────────────────────────────────────────────
 // @see docs/FLOWS/03-admin-confirm.md
 

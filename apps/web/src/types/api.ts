@@ -102,6 +102,9 @@ export type Booking = {
   termsAcceptedAt?: string | null;
   invoiceSentAt?: string | null;
   paymentClaimedAt?: string | null;
+  paymentProofName?: string | null;
+  paymentProofMime?: string | null;
+  paymentProofUploadedAt?: string | null;
   accessToken?: string;
   accessTokenExpiresAt?: string | null;
   feeLines?: BookingFeeLine[];

@@ -8,7 +8,7 @@ Connectée à Odoo ([marneza.odoo.com/shop](https://marneza.odoo.com/shop)) pour
 
 | Couche | Technologie |
 |--------|-------------|
-| Frontend | Next.js 15 |
+| Frontend | React 19 + Vite (build statique → FileZilla) |
 | Backend | Node.js + Express |
 | BDD | MySQL / MariaDB (XAMPP) |
 | ORM | Prisma |

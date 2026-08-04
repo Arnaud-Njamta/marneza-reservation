@@ -24,7 +24,7 @@ export const MARNEZA = {
     heading: 'var(--font-manrope), "Manrope", sans-serif',
   },
   logo: 'https://marneza.odoo.com/web/image/website/1/logo/Marneza?unique=922ae7c',
-  phone: '+243 999 973 910',
+  phone: '+243 830 770 850',
   email: 'hello@marneza.com',
   address: "87 Av Maringa, Quartier Matanga Commune de Kasa Vubu, direction Asosa Kinshsa, RDC",
 };

@@ -1,15 +1,5 @@
-'use client';
-
-/**
- * Formulaire de réservation complet.
- *
- * @route   /book/[slug]
- * @calls   api-client.ts → getAvailability, getQuote, createBooking
- * @flow    docs/FLOWS/01-create-booking.md
- */
-
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { CustomerCategory, EventType, Quote, Resource } from '@/types/api';
 import { createBooking, getQuote } from '@/lib/api-client';
 import { saveBookingToken } from '@/lib/booking-access';
@@ -30,7 +20,7 @@ type Props = {
 };
 
 export function BookingWizard({ resource, fromOdoo = false }: Props) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const bookingTypes = resource.resourceType.bookingTypes;
   const resourceTypeCode = resource.resourceType.code;
 
@@ -139,9 +129,9 @@ export function BookingWizard({ resource, fromOdoo = false }: Props) {
       });
       if (booking.accessToken) {
         saveBookingToken(booking.id, booking.accessToken);
-        router.push(`/book/${resource.slug}/confirm/${booking.id}?token=${encodeURIComponent(booking.accessToken)}`);
+        navigate(`/book/${resource.slug}/confirm/${booking.id}?token=${encodeURIComponent(booking.accessToken)}`);
       } else {
-        router.push(`/book/${resource.slug}/confirm/${booking.id}`);
+        navigate(`/book/${resource.slug}/confirm/${booking.id}`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la réservation');

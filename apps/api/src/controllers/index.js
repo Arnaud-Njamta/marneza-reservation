@@ -159,6 +159,32 @@ async function claimPayment(req, res, next) {
   }
 }
 
+async function uploadPaymentProof(req, res, next) {
+  try {
+    const proofService = require('../services/payment-proof.service');
+    const booking = await proofService.savePaymentProof(req.params.id, req.file);
+    res.json({ data: booking });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function downloadPaymentProof(req, res, next) {
+  try {
+    const booking = await bookingService.getById(req.params.id);
+    const proofService = require('../services/payment-proof.service');
+    const file = proofService.getProofFile(booking);
+    res.setHeader('Content-Type', file.mime);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(file.name)}"`
+    );
+    require('fs').createReadStream(file.absolutePath).pipe(res);
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function markBookingReviewedFromEmail(req, res, next) {
   try {
     const { token } = req.query;
@@ -223,6 +249,8 @@ module.exports = {
   cancelBooking,
   submitBooking,
   claimPayment,
+  uploadPaymentProof,
+  downloadPaymentProof,
   markBookingReviewedFromEmail,
   listRentalTerms,
   adminListBookings,

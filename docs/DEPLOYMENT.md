@@ -1,193 +1,130 @@
-# Déploiement — Production (VPS IONOS)
+# Déploiement — Production
 
-## Domaine cible
+## Architecture (React + API)
 
-- **App** : `https://reserve.marneza.com`
-- **Odoo** : `https://marneza.odoo.com`
-
-Tout (Next.js + API Express + MySQL) tourne sur le **VPS IONOS**.  
-L’hébergement web FTP/FileZilla seul ne convient pas à Next.js (besoin de Node.js).
-
-```
-Navigateur → DNS reserve.marneza.com → Nginx (HTTPS)
-                 ├─ /      → Next.js  :3000
-                 └─ /api   → Express  :4000
-                                  ├─ MySQL
-                                  └─ SMTP IONOS
+```text
+Front React (build statique)  →  FileZilla / hébergement web IONOS
+API Express + MySQL         →  VPS IONOS (PM2 + Nginx)
 ```
 
-## Prérequis VPS
+| Composant | Hébergement | Build |
+|-----------|-------------|--------|
+| Frontend | Hébergement web IONOS (FTP) | `npm run build --workspace=apps/web` → `apps/web/dist/` |
+| API | VPS `/var/www/marneza-reservation` | PM2 `marneza-api` |
 
-- Ubuntu (ou Debian) à jour
-- Node.js **20+**
-- MySQL / MariaDB
-- Nginx
-- PM2 (`npm i -g pm2`)
-- Certificat SSL (Let’s Encrypt / certbot)
+## Domaine cible (même modèle que Yaya)
 
-## DNS
+| App | Domaine | Dossier FileZilla |
+|-----|---------|-------------------|
+| Collecte taxes | `https://yaya.blconcept-yala.com` | `/yaya` |
+| Réservation Marneza | `https://marneza.blconcept-yala.com` | `/Marneza` |
 
-`reserve.marneza.com` → adresse IP publique du VPS (enregistrement A).
+Front et API partagent le **même domaine** : le navigateur appelle `/api/...` sur ce domaine ; Nginx (ou le reverse proxy IONOS/VPS) route `/api` vers le backend Node.
 
-## Variables production
+## Variables frontend (build)
 
-Fichier `.env` à la racine du monorepo (même schéma que `.env.example`) :
+Fichier `apps/web/.env.production` :
+
+```env
+VITE_API_URL=https://marneza.blconcept-yala.com
+```
+
+En local : `apps/web/.env.development` → `VITE_API_URL=http://localhost:4000`
+
+## Variables API (VPS)
+
+Fichier `.env` à la racine du monorepo sur le VPS :
 
 ```env
 NODE_ENV=production
-APP_URL=https://reserve.marneza.com
-API_URL=https://reserve.marneza.com
-DATABASE_URL=mysql://USER:PASSWORD@127.0.0.1:3306/marneza_reservation
-REDIS_URL=redis://127.0.0.1:6379
-JWT_SECRET=<long-random-string>
-JWT_EXPIRES_IN=7d
+APP_URL=https://marneza.blconcept-yala.com
+API_URL=https://marneza.blconcept-yala.com
+DATABASE_URL=mysql://...
+JWT_SECRET=...
 REQUIRE_AUTH=true
-CORS_ORIGINS=https://reserve.marneza.com,https://marneza.odoo.com
-
-ADMIN_EMAIL=admin@marneza.com
-ADMIN_PASSWORD=<mot-de-passe-initial-fort>
-ADMIN_NOTIFICATION_EMAIL=app@marneza.com
-
-MAIL_ENABLED=true
-MAIL_MODE=smtp
-SMTP_HOST=smtp.ionos.fr
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=app@marneza.com
-SMTP_PASS=<secret>
-SMTP_FROM=Marneza <app@marneza.com>
+CORS_ORIGINS=https://marneza.blconcept-yala.com,https://marneza.odoo.com
 ```
 
-> `ADMIN_PASSWORD` ne s’applique qu’à la **création** du compte au seed.  
-> Un re-seed **n’écrase pas** un mot de passe déjà modifié via Mon compte ou reset e-mail.
+## DNS
 
-## Installation (une fois)
+Créer chez IONOS :
+
+| Type | Nom | Valeur |
+|------|-----|--------|
+| A ou CNAME | `reserve` | IP VPS **ou** hébergement web IONOS |
+
+**Option A — tout sur le VPS** (simple) : `reserve` → IP VPS, Nginx sert le front (`dist/`) + `/api`.
+
+**Option B — front FileZilla** (comme Yaya) : `reserve` → hébergement web, API sur VPS avec Nginx `/api` ou `api.reserve.marneza.com`.
+
+## Build front (local ou CI)
 
 ```bash
-# Sur le VPS
-git clone <repo> /var/www/marneza-reservation
-cd /var/www/marneza-reservation
-cp .env.example .env   # puis éditer
+cd marneza-reservation
 npm install
-
-# Base
-mysql -e "CREATE DATABASE marneza_reservation CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-npm run db:generate
-npm run db:migrate
-npm run db:seed        # crée le compte admin initial
-
-# Build front
 npm run build --workspace=apps/web
 ```
 
-## Processus (PM2)
+Contenu à uploader via **FileZilla** : tout le dossier `apps/web/dist/` (y compris `.htaccess` pour le routage SPA).
 
-Exemple `ecosystem.config.cjs` à la racine :
-
-```js
-module.exports = {
-  apps: [
-    {
-      name: 'marneza-api',
-      cwd: './apps/api',
-      script: 'src/index.js',
-      instances: 1,
-      env: { NODE_ENV: 'production' },
-    },
-    {
-      name: 'marneza-web',
-      cwd: './apps/web',
-      script: 'node_modules/next/dist/bin/next',
-      args: 'start -p 3000',
-      instances: 1,
-      env: { NODE_ENV: 'production' },
-    },
-  ],
-};
-```
-
-```bash
-pm2 start ecosystem.config.cjs
-pm2 save
-pm2 startup
-```
-
-Vérifier : `curl http://127.0.0.1:4000/api/health`
-
-## Nginx (reverse proxy)
-
-```nginx
-server {
-  listen 80;
-  server_name reserve.marneza.com;
-  return 301 https://$host$request_uri;
-}
-
-server {
-  listen 443 ssl http2;
-  server_name reserve.marneza.com;
-
-  # ssl_certificate / etc. (certbot)
-
-  location /api/ {
-    proxy_pass http://127.0.0.1:4000;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-
-  location / {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-  }
-}
-```
-
-Ensuite : `sudo certbot --nginx -d reserve.marneza.com`
-
-Le front Next.js proxifie aussi `/api` en interne ([next.config.js](../apps/web/next.config.js)) ; Nginx peut router `/api` directement vers Express (recommandé en prod).
-
-## Compte admin — première connexion & récupération
-
-1. Ouvrir `https://reserve.marneza.com/admin/login`
-2. Se connecter avec `ADMIN_EMAIL` / `ADMIN_PASSWORD` (valeurs du seed initial)
-3. Menu utilisateur → **Mon compte** : modifier e-mail et/ou mot de passe
-4. Si oubli :
-   - **Mot de passe oublié** → code à 6 chiffres par SMTP (15 min) → nouveau mot de passe
-   - **Identifiant oublié** → e-mail de connexion **ou** `ADMIN_NOTIFICATION_EMAIL` → code → révélation de l’identifiant
-
-## Lien Odoo /shop
-
-Sur chaque fiche produit, bouton :
-
-```
-https://reserve.marneza.com/book/espace-polyvalent
-```
-
-## Checklist avant mise en prod
-
-- [ ] `REQUIRE_AUTH=true`
-- [ ] `JWT_SECRET` fort (aléatoire long)
-- [ ] Migrations Prisma appliquées (`npm run db:migrate`)
-- [ ] Seed exécuté une fois
-- [ ] SMTP IONOS testé (réception d’un code de récupération)
-- [ ] HTTPS activé
-- [ ] Backups MySQL planifiés
-- [ ] `odoo_product_id` renseignés si sync Odoo
-
-## Mises à jour
+## Déploiement API (VPS)
 
 ```bash
 cd /var/www/marneza-reservation
 git pull
 npm install
 npm run db:migrate
-npm run build --workspace=apps/web
-pm2 restart marneza-api marneza-web
+pm2 start ecosystem.config.cjs   # marneza-api uniquement
+pm2 save
 ```
+
+## Nginx — API + front statique (option A, tout VPS)
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name reserve.marneza.com;
+
+  root /var/www/marneza-reservation/apps/web/dist;
+  index index.html;
+
+  location /api/ {
+    proxy_pass http://127.0.0.1:4000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}
+```
+
+## Nginx — API seule (option B, front FileZilla)
+
+Sur le VPS, proxy uniquement `/api` ; le front est sur l’hébergement web IONOS.
+
+## Compte admin
+
+1. `https://reserve.marneza.com/admin/login`
+2. Identifiants du seed (`ADMIN_EMAIL` / `ADMIN_PASSWORD`)
+3. **Mon compte** pour modifier e-mail / mot de passe
+4. Récupération par code SMTP si oubli
+
+## Coexistence avec d’autres apps (ex. collecte taxes)
+
+Chaque app = **son port** sur le VPS :
+
+| App | Port |
+|-----|------|
+| Marneza API | 4000 |
+| Collecte taxes | 3001 (pas 3000) |
+
+## Checklist
+
+- [ ] `VITE_API_URL` correct au build
+- [ ] `.htaccess` présent dans `dist/` (upload FTP)
+- [ ] DNS `reserve.marneza.com` créé
+- [ ] `CORS_ORIGINS` inclut l’URL du front
+- [ ] HTTPS activé
+- [ ] `pm2 delete marneza-web` si ancien front Node encore actif

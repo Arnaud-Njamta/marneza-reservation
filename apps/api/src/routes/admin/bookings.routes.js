@@ -34,6 +34,7 @@ router.get('/upcoming', admin.getUpcomingBookings);
 router.get('/:id', admin.getBooking);
 router.post('/:id/send-invoice', admin.sendInvoice);
 router.post('/:id/confirm-payment', admin.confirmPayment);
+router.get('/:id/payment-proof', admin.downloadPaymentProof);
 router.post('/:id/cancel', admin.cancelBooking);
 router.post('/:id/refuse', admin.refuseBooking);
 router.patch('/:id/status', admin.updateBookingStatus);

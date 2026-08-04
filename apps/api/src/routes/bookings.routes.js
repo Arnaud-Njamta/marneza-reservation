@@ -49,4 +49,13 @@ router.post('/:id/cancel', requireBookingAccess, ctrl.cancelBooking);
 router.post('/:id/submit', requireBookingAccess, ctrl.submitBooking);
 router.post('/:id/claim-payment', requireBookingAccess, ctrl.claimPayment);
 
+const { paymentProofUpload } = require('../middlewares/payment-proof-upload.middleware');
+router.post(
+  '/:id/payment-proof',
+  requireBookingAccess,
+  paymentProofUpload,
+  ctrl.uploadPaymentProof
+);
+router.get('/:id/payment-proof', requireBookingAccess, ctrl.downloadPaymentProof);
+
 module.exports = router;

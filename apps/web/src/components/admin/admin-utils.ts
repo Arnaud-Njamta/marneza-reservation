@@ -24,6 +24,9 @@ export function paymentWorkflowFlags(booking: Booking): PaymentWorkflowFlag[] {
   if (booking.paymentClaimedAt) {
     flags.push({ key: 'claimed', label: 'Paiement signalé', tone: 'warning' });
   }
+  if (booking.paymentProofUploadedAt || booking.paymentProofName) {
+    flags.push({ key: 'proof', label: 'Preuve jointe', tone: 'info' });
+  }
   if (booking.status === 'paid') {
     flags.push({ key: 'paid', label: 'Paiement confirmé', tone: 'success' });
   }

@@ -3,6 +3,8 @@
  */
 
 :root {
+  --font-inter: 'Inter', sans-serif;
+  --font-manrope: 'Manrope', sans-serif;
   --marneza-primary: #e33a07;
   --marneza-primary-hover: #ca3406;
   --marneza-nav-link: #fb8f6f;
@@ -60,7 +62,7 @@ a:hover {
 
 /* ─── Header (identique Odoo) ─── */
 .site-header {
-  background: var(--marneza-dark);
+  background: #000;
   color: #fff;
 }
 
@@ -69,7 +71,7 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 61px;
+  min-height: 64px;
   padding: 0.5rem 0;
 }
 
@@ -82,95 +84,109 @@ a:hover {
 .site-header__nav {
   display: none;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.15rem;
   list-style: none;
   margin: 0;
   padding: 0;
+  flex: 1;
 }
 
 .site-header__nav a {
-  color: var(--marneza-nav-link);
-  font-size: 1rem;
-  padding: 0.5rem 0.75rem;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.95rem;
+  font-weight: 400;
+  padding: 0.45rem 0.65rem;
   border-radius: 0.25rem;
   transition: color 0.15s;
+  white-space: nowrap;
 }
 
 .site-header__nav a:hover,
 .site-header__nav a.active {
   color: #fff;
+  font-weight: 600;
 }
 
 .site-header__actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
   flex-shrink: 0;
 }
 
+.site-header__icons {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.site-header__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.site-header__icon-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+
 .site-header__phone {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
   color: #fff;
   font-size: 0.9rem;
   white-space: nowrap;
-  display: none;
 }
 
 .site-header__phone:hover {
-  color: var(--marneza-nav-link);
+  color: #fff;
+  opacity: 0.85;
 }
 
 .site-header__login {
-  color: #fff;
-  font-size: 0.9rem;
   display: none;
+  color: #fff;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  padding: 0.4rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: var(--marneza-radius-pill);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .site-header__login:hover {
-  color: var(--marneza-nav-link);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: #fff;
+}
+
+.site-header__cta {
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .site-header__phone {
+    display: inline-flex;
+  }
 }
 
 @media (min-width: 992px) {
   .site-header__nav {
     display: flex;
   }
-  .site-header__phone,
-  .site-header__login,
-  .site-header__pro-label {
-    display: inline;
-  }
-}
-
-.site-header__pro {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: var(--marneza-radius-pill);
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.8rem;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
-}
-
-.site-header__pro:hover {
-  border-color: var(--marneza-primary);
-  background: rgba(227, 58, 7, 0.12);
-  color: #fff;
-}
-
-.site-header__pro-icon {
-  flex-shrink: 0;
-  opacity: 0.85;
-}
-
-.site-header__pro-label {
-  display: none;
-  white-space: nowrap;
-}
-
-@media (min-width: 768px) {
-  .site-header__pro-label {
-    display: inline;
+  .site-header__login {
+    display: inline-flex;
+    align-items: center;
   }
 }
 
@@ -1832,6 +1848,20 @@ a:hover {
   margin: 0;
   color: var(--marneza-muted);
   line-height: 1.5;
+}
+
+.payment-proof-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.payment-proof-card__current {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--marneza-muted);
 }
 
 .confirm-actions {

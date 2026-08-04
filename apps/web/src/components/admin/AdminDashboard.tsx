@@ -19,6 +19,7 @@ import {
   adminListBookings,
   adminUpdateBookingAmount,
   adminUpdateBookingStatus,
+  openAdminPaymentProof,
 } from '@/lib/api-client';
 import type { AdminStats } from '@/types/api';
 import {
@@ -453,6 +454,25 @@ export function AdminDashboard() {
                         onClick={() => handleSendInvoice(b.id)}
                       >
                         {b.invoiceSentAt ? 'Renvoyer synthèse' : 'Envoyer synthèse'}
+                      </button>
+                    )}
+                    {b.paymentProofName && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline"
+                        disabled={actionId === b.id}
+                        onClick={async () => {
+                          setActionId(b.id);
+                          try {
+                            await openAdminPaymentProof(b.id);
+                          } catch (e) {
+                            setError(e instanceof Error ? e.message : 'Preuve introuvable');
+                          } finally {
+                            setActionId(null);
+                          }
+                        }}
+                      >
+                        Voir preuve
                       </button>
                     )}
                     {b.status === 'processing' && b.paymentClaimedAt && (

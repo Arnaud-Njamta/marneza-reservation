@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 import { getOdooProductUrl, ODOO_SHOP_URL } from '@/lib/odoo-shop';
 
 type Props = {
@@ -22,7 +22,7 @@ export function BookingBreadcrumb({ resourceSlug, resourceName, fromOdoo }: Prop
 
   return (
     <p style={{ marginBottom: '0.5rem' }}>
-      <Link href="/" style={{ fontSize: '0.875rem', color: 'var(--marneza-muted)' }}>
+      <Link to="/" style={{ fontSize: '0.875rem', color: 'var(--marneza-muted)' }}>
         ← Tous les espaces
       </Link>
     </p>

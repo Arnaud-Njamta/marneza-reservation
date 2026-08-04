@@ -1,7 +1,5 @@
-'use client';
-
 import { FormEvent, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   confirmIdentifier,
   forgotIdentifier,
@@ -14,8 +12,8 @@ type Mode = 'login' | 'forgot-password' | 'forgot-identifier';
 type Step = 'form' | 'code' | 'done';
 
 export function AdminLoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const next = searchParams.get('next') || '/admin';
   const modeParam = searchParams.get('mode');
 
@@ -58,7 +56,7 @@ export function AdminLoginForm() {
     setLoading(true);
     try {
       await loginAdmin(email, password);
-      router.replace(next);
+      navigate(next, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connexion impossible');
     } finally {

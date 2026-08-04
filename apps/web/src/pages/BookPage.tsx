@@ -1,9 +1,5 @@
-/**
- * Page réservation — charge la ressource côté serveur, formulaire côté client.
- *
- * @route /book/[slug]?from=odoo
- */
-
+import { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { BookingBreadcrumb } from '@/components/booking/BookingBreadcrumb';
 import { BookingWizard } from '@/components/booking/BookingWizard';
 import { OdooContextBanner } from '@/components/booking/OdooContextBanner';
@@ -11,23 +7,33 @@ import { PriceDisplay } from '@/components/booking/PriceDisplay';
 import { getResource } from '@/lib/api-client';
 import { getResourceMinPrice, isFromOdoo } from '@/lib/odoo-shop';
 import type { Resource } from '@/types/api';
-import { notFound } from 'next/navigation';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 
-type Props = {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ from?: string }>;
-};
+export function BookPage() {
+  const { slug = '' } = useParams<{ slug: string }>();
+  const [searchParams] = useSearchParams();
+  const fromOdoo = isFromOdoo(searchParams.get('from') ?? undefined);
 
-export default async function BookPage({ params, searchParams }: Props) {
-  const { slug } = await params;
-  const { from } = await searchParams;
-  const fromOdoo = isFromOdoo(from);
+  const [resource, setResource] = useState<Resource | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
-  let resource: Resource;
-  try {
-    resource = await getResource(slug);
-  } catch {
-    notFound();
+  useEffect(() => {
+    setLoading(true);
+    setNotFound(false);
+    getResource(slug)
+      .then(setResource)
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+  }, [slug]);
+
+  if (notFound) return <NotFoundPage />;
+  if (loading || !resource) {
+    return (
+      <main className="container page-main">
+        <p style={{ color: 'var(--marneza-muted)' }}>Chargement…</p>
+      </main>
+    );
   }
 
   const minPrice = getResourceMinPrice(resource);

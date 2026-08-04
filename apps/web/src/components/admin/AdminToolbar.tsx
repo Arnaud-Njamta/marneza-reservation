@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { getAdminUser, logoutAdmin } from '@/lib/auth';
 import type { AuthUser } from '@/types/api';
@@ -19,7 +18,7 @@ function initials(user: AuthUser) {
 }
 
 export function AdminToolbar() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
   const { lastUpdatedAt, isRefreshing, refreshNow } = useAdminRefresh();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -59,7 +58,7 @@ export function AdminToolbar() {
             return (
               <Link
                 key={tab.href}
-                href={tab.href}
+                to={tab.href}
                 className={`admin-toolbar__tab ${active ? 'active' : ''}`}
               >
                 {tab.label}
@@ -117,14 +116,14 @@ export function AdminToolbar() {
               )}
               <div className="admin-user-menu__divider" />
               <Link
-                href="/admin/account"
+                to="/admin/account"
                 className="admin-user-menu__item"
                 role="menuitem"
                 onClick={() => setMenuOpen(false)}
               >
                 Mon compte
               </Link>
-              <Link href="/" className="admin-user-menu__item" role="menuitem" onClick={() => setMenuOpen(false)}>
+              <Link to="/" className="admin-user-menu__item" role="menuitem" onClick={() => setMenuOpen(false)}>
                 Voir le site public
               </Link>
               <button

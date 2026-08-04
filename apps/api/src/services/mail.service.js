@@ -216,14 +216,23 @@ function clientLinkBlock(booking, { note } = {}) {
   return {
     trackUrl,
     text: [
-      `Suivre ma réservation : ${trackUrl}`,
+      `Suivre ma réservation :`,
+      trackUrl,
       note || expiryNote,
     ].join('\n'),
+    // Bouton + URL en clair (certains clients mail cassent les boutons CSS)
     html: `
-      <p>
-        <a href="${trackUrl}" style="display:inline-block;padding:10px 16px;background:#e33a07;color:#fff;text-decoration:none;border-radius:999px;">
+      <p style="margin:20px 0;">
+        <a href="${trackUrl}"
+           target="_blank"
+           rel="noopener noreferrer"
+           style="display:inline-block;padding:12px 20px;background:#e33a07;color:#ffffff !important;text-decoration:underline;border-radius:999px;font-weight:600;">
           Suivre ma réservation
         </a>
+      </p>
+      <p style="font-size:13px;line-height:1.5;color:#333;">
+        Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br/>
+        <a href="${trackUrl}" target="_blank" rel="noopener noreferrer" style="color:#e33a07;word-break:break-all;">${trackUrl}</a>
       </p>
       <p style="font-size:12px;color:#666;">${note || expiryNote}</p>
     `,
@@ -409,19 +418,24 @@ async function sendClientInvoiceEmail(booking) {
 
 async function sendAdminPaymentClaimedEmail(booking) {
   const subject = `Paiement signalé par le client — ${booking.resource.name}`;
+  const hasProof = Boolean(booking.paymentProofPath);
   const text = [
     'Le client indique avoir effectué le paiement. Vérifiez votre compte puis confirmez dans l\'admin.',
+    hasProof ? 'Une preuve de paiement a été jointe (consultable dans l\'admin).' : '',
     '',
     `Référence : ${bookingRef(booking)}`,
     `Client : ${booking.customer.firstName} ${booking.customer.lastName} (${booking.customer.email})`,
     `Montant attendu : ${Number(booking.totalAmount)} ${booking.currency}`,
     '',
     `Admin : ${env.appUrl}/admin`,
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const html = `
     <h2>Paiement signalé par le client</h2>
     <p>Vérifiez la réception du virement / mobile money, puis confirmez le paiement dans l'administration.</p>
+    ${hasProof ? '<p><strong>Preuve de paiement :</strong> jointe — consultez-la dans l\'admin.</p>' : ''}
     <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>
     <p><strong>Client :</strong> ${booking.customer.email}</p>
     <p><strong>Montant :</strong> ${Number(booking.totalAmount)} ${booking.currency}</p>
@@ -431,31 +445,74 @@ async function sendAdminPaymentClaimedEmail(booking) {
   await sendEmail({ to: env.adminNotificationEmail, subject, text, html });
 }
 
-async function sendClientPaymentConfirmedEmail(booking) {
+/** Accusé de réception au client après « J'ai effectué le paiement » */
+async function sendClientPaymentClaimedAckEmail(booking) {
   const link = clientLinkBlock(booking);
-  const subject = `Paiement confirmé — ${booking.resource.name}`;
+  const subject = `Paiement reçu — en cours de vérification — ${booking.resource.name}`;
   const text = [
     `Bonjour ${booking.customer.firstName},`,
     '',
-    'Votre paiement a été confirmé. Votre réservation est validée.',
+    'Nous avons bien enregistré votre signalement de paiement.',
+    booking.paymentProofPath
+      ? 'Votre preuve de paiement a bien été reçue.'
+      : 'Vous pouvez encore ajouter une preuve (capture ou PDF) depuis votre page de suivi.',
+    '',
+    'Notre équipe vérifie la réception sur le compte. Vous recevrez un email dès que le paiement sera confirmé.',
     '',
     `Référence : ${bookingRef(booking)}`,
-    `Espace : ${booking.resource.name}`,
-    `Période : ${formatBookingPeriod(booking)}`,
+    `Montant : ${Number(booking.totalAmount)} ${booking.currency}`,
     '',
     link.text,
     '',
-    'Merci,',
+    'Cordialement,',
     'L\'équipe Marneza',
   ].join('\n');
 
   const html = `
-    <h2>Paiement confirmé</h2>
+    <h2>Paiement en cours de vérification</h2>
     <p>Bonjour <strong>${booking.customer.firstName}</strong>,</p>
-    <p>Votre paiement a été confirmé par notre équipe. Votre réservation est validée.</p>
+    <p>Nous avons bien enregistré votre signalement de paiement.</p>
+    ${
+      booking.paymentProofPath
+        ? '<p>Votre <strong>preuve de paiement</strong> a bien été reçue.</p>'
+        : '<p>Vous pouvez encore ajouter une preuve (capture ou PDF) depuis votre page de suivi.</p>'
+    }
+    <p>Notre équipe vérifie la réception. Vous recevrez un email dès confirmation.</p>
+    <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>
+    <p><strong>Montant :</strong> ${Number(booking.totalAmount)} ${booking.currency}</p>
+    ${link.html}
+  `;
+
+  await sendEmail({ to: booking.customer.email, subject, text, html });
+}
+
+async function sendClientPaymentConfirmedEmail(booking) {
+  const link = clientLinkBlock(booking);
+  const subject = `Paiement confirmé — vous avez réglé — ${booking.resource.name}`;
+  const text = [
+    `Bonjour ${booking.customer.firstName},`,
+    '',
+    'Votre paiement a été confirmé. Vous avez bien réglé votre réservation Marneza.',
+    '',
+    `Référence : ${bookingRef(booking)}`,
+    `Espace : ${booking.resource.name}`,
+    `Période : ${formatBookingPeriod(booking)}`,
+    `Montant réglé : ${Number(booking.totalAmount)} ${booking.currency}`,
+    '',
+    link.text,
+    '',
+    'Merci de votre confiance,',
+    'L\'équipe Marneza',
+  ].join('\n');
+
+  const html = `
+    <h2>Paiement confirmé — vous avez réglé</h2>
+    <p>Bonjour <strong>${booking.customer.firstName}</strong>,</p>
+    <p>Votre paiement a été <strong>confirmé</strong> par notre équipe. Votre réservation est validée.</p>
     <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>
     <p><strong>Espace :</strong> ${booking.resource.name}</p>
     <p><strong>Période :</strong> ${formatBookingPeriod(booking)}</p>
+    <p><strong>Montant réglé :</strong> ${Number(booking.totalAmount)} ${booking.currency}</p>
     ${link.html}
   `;
 
@@ -499,7 +556,8 @@ async function sendBookingReminderEmails(booking, kind) {
     <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>
     <p><strong>Espace :</strong> ${booking.resource.name}</p>
     <p><strong>Période :</strong> ${period}</p>
-    <p><a href="${trackUrl}">Voir ma réservation</a></p>
+    <p><a href="${trackUrl}" target="_blank" rel="noopener noreferrer" style="color:#e33a07;word-break:break-all;">Voir ma réservation</a></p>
+    <p style="font-size:12px;color:#666;">Lien : <a href="${trackUrl}" target="_blank" rel="noopener noreferrer" style="word-break:break-all;">${trackUrl}</a></p>
   `;
 
   await sendEmail({
@@ -589,6 +647,7 @@ module.exports = {
   sendClientSubmitConfirmedEmail,
   sendClientInvoiceEmail,
   sendAdminPaymentClaimedEmail,
+  sendClientPaymentClaimedAckEmail,
   sendClientPaymentConfirmedEmail,
   sendBookingReminderEmails,
   sendAuthRecoveryCodeEmail,

@@ -1,18 +1,10 @@
-'use client';
-
-/**
- * Page confirmation — conditions, hold 15 min, suivi paiement manuel.
- */
-
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import type { Booking, RentalTerm } from '@/types/api';
-import { cancelBooking, claimPayment, getBooking, getRentalTerms, submitBooking } from '@/lib/api-client';
+import { cancelBooking, claimPayment, getBooking, getRentalTerms, submitBooking, uploadPaymentProof } from '@/lib/api-client';
 import { saveBookingToken } from '@/lib/booking-access';
 import {
   clientStatusMessage,
-  customerCategoryLabel,
   statusLabel,
 } from '@/lib/booking-status';
 import { BookingStatusStepper } from './BookingStatusStepper';
@@ -26,7 +18,6 @@ const FALLBACK_RENTAL_TERMS = [
 ];
 
 type Props = {
-  slug: string;
   bookingId: string;
 };
 
@@ -40,14 +31,16 @@ function formatDate(iso: string) {
   });
 }
 
-export function ConfirmClient({ slug, bookingId }: Props) {
-  const searchParams = useSearchParams();
+export function ConfirmClient({ bookingId }: Props) {
+  const [searchParams] = useSearchParams();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [rentalTerms, setRentalTerms] = useState<string[]>(FALLBACK_RENTAL_TERMS);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofMsg, setProofMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const tokenFromUrl = searchParams.get('token');
@@ -145,11 +138,37 @@ export function ConfirmClient({ slug, bookingId }: Props) {
     }
   }
 
+  async function handleUploadProof() {
+    if (!proofFile) {
+      setError('Choisissez un fichier PDF ou une image (capture).');
+      return;
+    }
+    setActionLoading('proof');
+    setError(null);
+    setProofMsg(null);
+    try {
+      const data = await uploadPaymentProof(bookingId, proofFile);
+      setBooking(data);
+      setProofFile(null);
+      setProofMsg('Preuve envoyée — merci.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload impossible');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
   async function handleClaimPayment() {
     setActionLoading('claim');
+    setError(null);
     try {
+      if (proofFile) {
+        await uploadPaymentProof(bookingId, proofFile);
+        setProofFile(null);
+      }
       const data = await claimPayment(bookingId);
       setBooking(data);
+      setProofMsg('Paiement signalé — un email de confirmation vous a été envoyé.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur');
     } finally {
@@ -258,6 +277,51 @@ export function ConfirmClient({ slug, bookingId }: Props) {
         </div>
       )}
 
+      {booking.status === 'processing' && booking.invoiceSentAt && (
+        <div className="card payment-proof-card">
+          <h2>Preuve de paiement</h2>
+          <p className="page-subtitle" style={{ marginTop: 0 }}>
+            Joignez une capture d&apos;écran ou un PDF de votre virement / mobile money (max 8&nbsp;Mo).
+          </p>
+          {booking.paymentProofName && (
+            <p className="payment-proof-card__current">
+              Fichier reçu : <strong>{booking.paymentProofName}</strong>
+              {booking.paymentProofUploadedAt && (
+                <>
+                  {' '}
+                  — {new Date(booking.paymentProofUploadedAt).toLocaleString('fr-FR')}
+                </>
+              )}
+            </p>
+          )}
+          {!booking.paymentClaimedAt || !booking.paymentProofName ? (
+            <div className="payment-proof-card__row">
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
+                onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+              />
+              <button
+                type="button"
+                className="btn btn-outline"
+                disabled={actionLoading !== null || !proofFile}
+                onClick={handleUploadProof}
+              >
+                {actionLoading === 'proof' ? 'Envoi…' : 'Envoyer la preuve'}
+              </button>
+            </div>
+          ) : null}
+          {proofMsg && <div className="success-banner">{proofMsg}</div>}
+        </div>
+      )}
+
+      {booking.status === 'paid' && (
+        <div className="card">
+          <h2>Paiement réglé</h2>
+          <p>Votre paiement a été confirmé. Un email de confirmation vous a été envoyé.</p>
+        </div>
+      )}
+
       <div className="confirm-actions">
         {booking.status === 'created' && holdActive && (
           <button
@@ -292,7 +356,7 @@ export function ConfirmClient({ slug, bookingId }: Props) {
           </button>
         )}
 
-        <Link href="/" className="btn btn-outline">
+        <Link to="/" className="btn btn-outline">
           Retour à l&apos;accueil
         </Link>
       </div>
