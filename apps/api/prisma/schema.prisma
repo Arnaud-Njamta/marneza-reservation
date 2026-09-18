@@ -1,5 +1,6 @@
-// Marneza Reservation — Schéma MySQL (XAMPP / MariaDB)
-// Documentation : docs/DATABASE.md
+// Marneza Reservation — Schéma MySQL (XAMPP / MariaDB / prod)
+// Documentation : docs/DATABASE.md + docs/passation/PASSATION_Marneza_Reservation_BL_Concept.docx
+// Client Prisma généré : npm run db:generate (workspace apps/api)
 
 generator client {
   provider = "prisma-client-js"

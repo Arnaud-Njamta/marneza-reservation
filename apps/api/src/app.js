@@ -1,15 +1,13 @@
 /**
- * Application Express — middlewares + montage routes.
+ * Application Express — middlewares + montage routes Marneza.
  *
  * @module app
- * @see docs/API_MANUAL.md §2 — anatomie d'une requête
+ * Passation : docs/passation/PASSATION_Marneza_Reservation_BL_Concept.docx
  *
- * L20  helmet()           — en-têtes sécurité HTTP
- * L21  cors()             — origines CORS_ORIGINS (.env)
- * L22  express.json()    — parse body JSON
- * L25  /api/docs         — Swagger UI (documentation interactive)
- * L28  /api              — toutes les routes API (routes/index.js)
- * L31  errorMiddleware   — gestion erreurs JSON (dernier middleware)
+ * helmet → CORS → JSON
+ * /api/docs  — Swagger UI
+ * /api       — routes/index.js
+ * errorMiddleware en dernier
  */
 
 const express = require('express');

@@ -39,26 +39,28 @@ export function SiteHeader({ activeOdooPath }: Props) {
   return (
     <header className="site-header">
       <div className="container-wide site-header__inner">
-        <a href={ODOO_SITE} className="site-header__logo">
-          <img src={MARNEZA.logo} alt="Marneza" width={120} height={40} />
-        </a>
+        <div className="site-header__left">
+          <a href={ODOO_SITE} className="site-header__logo">
+            <img src={MARNEZA.logo} alt="Marneza" width={120} height={40} />
+          </a>
 
-        <nav aria-label="Navigation principale">
-          <ul className="site-header__nav">
-            {NAV_LINKS.map((item) => {
-              const isActive = activeOdooPath
-                ? item.href.endsWith(activeOdooPath)
-                : item.label === 'Accueil';
-              return (
-                <li key={item.label}>
-                  <a href={item.href} className={isActive ? 'active' : undefined}>
-                    {item.label}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+          <nav aria-label="Navigation principale">
+            <ul className="site-header__nav">
+              {NAV_LINKS.map((item) => {
+                const isActive = activeOdooPath
+                  ? item.href.endsWith(activeOdooPath)
+                  : item.label === 'Accueil';
+                return (
+                  <li key={item.label}>
+                    <a href={item.href} className={isActive ? 'active' : undefined}>
+                      {item.label}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </div>
 
         <div className="site-header__actions">
           <div className="site-header__icons">

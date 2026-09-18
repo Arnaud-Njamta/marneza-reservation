@@ -140,7 +140,7 @@ export function AdminLoginForm() {
         : 'Identifiant oublié';
 
   return (
-    <div className="card admin-login-card">
+    <div className="admin-login-form">
       {title && (
         <div className="admin-login-recovery__header">
           <h2 className="admin-login-recovery__title">{title}</h2>
@@ -172,32 +172,34 @@ export function AdminLoginForm() {
       {info && <div className="success-banner">{info}</div>}
 
       {mode === 'login' && (
-        <form onSubmit={handleLogin}>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
+        <form className="admin-login-form__fields" onSubmit={handleLogin}>
+          <div className="form-group admin-login-form__group">
+            <label htmlFor="email">Adresse e-mail</label>
             <input
               id="email"
               type="email"
               autoComplete="username"
               required
+              placeholder="vous@marneza.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group admin-login-form__group">
             <label htmlFor="password">Mot de passe</label>
             <input
               id="password"
               type="password"
               autoComplete="current-password"
               required
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
-          <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%' }}>
+          <button type="submit" className="btn btn-primary admin-login-form__submit" disabled={loading}>
             {loading ? 'Connexion…' : 'Se connecter'}
           </button>
 
@@ -213,8 +215,8 @@ export function AdminLoginForm() {
       )}
 
       {mode === 'forgot-password' && step === 'form' && (
-        <form onSubmit={handleForgotPasswordRequest}>
-          <div className="form-group">
+        <form className="admin-login-form__fields" onSubmit={handleForgotPasswordRequest}>
+          <div className="form-group admin-login-form__group">
             <label htmlFor="fp-email">E-mail du compte</label>
             <input
               id="fp-email"
@@ -223,9 +225,10 @@ export function AdminLoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="username"
+              placeholder="vous@marneza.com"
             />
           </div>
-          <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%' }}>
+          <button type="submit" className="btn btn-primary admin-login-form__submit" disabled={loading}>
             {loading ? 'Envoi…' : 'Envoyer le code'}
           </button>
           <button type="button" className="admin-login-back" onClick={() => switchMode('login')}>
@@ -235,11 +238,12 @@ export function AdminLoginForm() {
       )}
 
       {mode === 'forgot-password' && step === 'code' && (
-        <form onSubmit={handleResetPassword}>
-          <div className="form-group">
+        <form className="admin-login-form__fields" onSubmit={handleResetPassword}>
+          <div className="form-group admin-login-form__group">
             <label htmlFor="fp-code">Code à 6 chiffres</label>
             <input
               id="fp-code"
+              className="admin-login-form__code"
               inputMode="numeric"
               pattern="[0-9]{6}"
               maxLength={6}
@@ -247,9 +251,10 @@ export function AdminLoginForm() {
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               autoComplete="one-time-code"
+              placeholder="000000"
             />
           </div>
-          <div className="form-group">
+          <div className="form-group admin-login-form__group">
             <label htmlFor="fp-new">Nouveau mot de passe</label>
             <input
               id="fp-new"
@@ -259,9 +264,10 @@ export function AdminLoginForm() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               autoComplete="new-password"
+              placeholder="8 caractères minimum"
             />
           </div>
-          <div className="form-group">
+          <div className="form-group admin-login-form__group">
             <label htmlFor="fp-confirm">Confirmer le mot de passe</label>
             <input
               id="fp-confirm"
@@ -271,9 +277,10 @@ export function AdminLoginForm() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               autoComplete="new-password"
+              placeholder="Retapez le mot de passe"
             />
           </div>
-          <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%' }}>
+          <button type="submit" className="btn btn-primary admin-login-form__submit" disabled={loading}>
             {loading ? 'Enregistrement…' : 'Réinitialiser le mot de passe'}
           </button>
           <button type="button" className="admin-login-back" onClick={() => switchMode('login')}>
@@ -284,15 +291,15 @@ export function AdminLoginForm() {
 
       {mode === 'forgot-password' && step === 'done' && (
         <div className="admin-login-done">
-          <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={() => switchMode('login')}>
+          <button type="button" className="btn btn-primary admin-login-form__submit" onClick={() => switchMode('login')}>
             Se connecter
           </button>
         </div>
       )}
 
       {mode === 'forgot-identifier' && step === 'form' && (
-        <form onSubmit={handleForgotIdentifierRequest}>
-          <div className="form-group">
+        <form className="admin-login-form__fields" onSubmit={handleForgotIdentifierRequest}>
+          <div className="form-group admin-login-form__group">
             <label htmlFor="fi-email">E-mail de récupération</label>
             <input
               id="fi-email"
@@ -301,9 +308,10 @@ export function AdminLoginForm() {
               value={recoveryEmail}
               onChange={(e) => setRecoveryEmail(e.target.value)}
               autoComplete="email"
+              placeholder="app@marneza.com"
             />
           </div>
-          <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%' }}>
+          <button type="submit" className="btn btn-primary admin-login-form__submit" disabled={loading}>
             {loading ? 'Envoi…' : 'Envoyer le code'}
           </button>
           <button type="button" className="admin-login-back" onClick={() => switchMode('login')}>
@@ -313,11 +321,12 @@ export function AdminLoginForm() {
       )}
 
       {mode === 'forgot-identifier' && step === 'code' && (
-        <form onSubmit={handleConfirmIdentifier}>
-          <div className="form-group">
+        <form className="admin-login-form__fields" onSubmit={handleConfirmIdentifier}>
+          <div className="form-group admin-login-form__group">
             <label htmlFor="fi-code">Code à 6 chiffres</label>
             <input
               id="fi-code"
+              className="admin-login-form__code"
               inputMode="numeric"
               pattern="[0-9]{6}"
               maxLength={6}
@@ -325,9 +334,10 @@ export function AdminLoginForm() {
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               autoComplete="one-time-code"
+              placeholder="000000"
             />
           </div>
-          <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%' }}>
+          <button type="submit" className="btn btn-primary admin-login-form__submit" disabled={loading}>
             {loading ? 'Vérification…' : 'Afficher mon identifiant'}
           </button>
           <button type="button" className="admin-login-back" onClick={() => switchMode('login')}>
@@ -350,8 +360,7 @@ export function AdminLoginForm() {
           )}
           <button
             type="button"
-            className="btn btn-primary"
-            style={{ width: '100%' }}
+            className="btn btn-primary admin-login-form__submit"
             onClick={() => switchMode('login')}
           >
             Se connecter

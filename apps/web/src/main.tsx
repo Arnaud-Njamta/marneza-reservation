@@ -1,3 +1,8 @@
+/**
+ * Point d’entrée front Marneza (Vite + React 19).
+ * Monte <App /> avec React Router. Styles : globals.css + thème marneza-theme.ts.
+ * Build prod → dist/ uploadé FileZilla sur booking.marneza.com
+ */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

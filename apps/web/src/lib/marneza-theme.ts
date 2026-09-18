@@ -32,7 +32,4 @@ export const MARNEZA = {
 export const NAV_LINKS = [
   { label: 'Accueil', href: `${ODOO_SITE}/` },
   { label: 'Galerie', href: `${ODOO_SITE}/galerie` },
-  { label: 'Salle de fête', href: `${ODOO_SITE}/shop` },
-  { label: 'Nos Événements', href: `${ODOO_SITE}/nos-evenements` },
-  { label: 'RDV Visite', href: `${ODOO_SITE}/rdv-visite` },
 ] as const;

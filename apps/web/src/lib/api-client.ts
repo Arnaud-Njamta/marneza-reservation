@@ -2,8 +2,10 @@
  * Client API centralisé — tous les appels frontend passent par ici.
  *
  * @module lib/api-client
- * @baseURL process.env.NEXT_PUBLIC_API_URL → http://localhost:4000
- * @see docs/API_ROUTES.md — chaque fonction référence sa route
+ * Base URL : VITE_API_URL (resolveApiBase) — local http://localhost:4000
+ * Auth admin : Bearer JWT (getAdminToken)
+ * Auth client booking : token hold / booking-access
+ * @see docs/passation/PASSATION_Marneza_Reservation_BL_Concept.docx
  */
 
 import type {

@@ -1,3 +1,23 @@
+/**
+ * Front Marneza — carte des routes React Router.
+ *
+ * Public :
+ *   /                      → HomePage (vitrine)
+ *   /book/:slug            → BookPage (réservation)
+ *   /book/:slug/confirm/:id → ConfirmPage (paiement / preuve)
+ *
+ * Admin (JWT via AdminShell) :
+ *   /admin/login           → AdminLoginPage
+ *   /admin                 → réservations
+ *   /admin/home            → édition vitrine
+ *   /admin/calendar        → calendrier
+ *   /admin/pricing         → tarifs
+ *   /admin/terms           → conditions
+ *   /admin/account         → compte admin
+ *
+ * Appels HTTP : src/lib/api-client.ts → API Express :4000
+ * Passation : docs/passation/PASSATION_Marneza_Reservation_BL_Concept.docx
+ */
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { SiteChrome } from '@/components/layout/SiteChrome';
 import { AdminShell } from '@/layouts/AdminShell';

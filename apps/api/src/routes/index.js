@@ -1,20 +1,24 @@
 /**
- * Agrégateur de toutes les routes API.
+ * Agrégateur de toutes les routes API Marneza.
  *
  * @module routes/index
- * @see docs/API_MANUAL.md §3.2 — carte des routes
- * @see docs/API_ROUTES.md — index rapide
+ * @see docs/passation/PASSATION_Marneza_Reservation_BL_Concept.docx
+ * @see docs/API_MANUAL.md
  *
- * Montage :
- * L22  /api/auth                          → auth.routes.js
- * L23  /api/resources                     → resources.routes.js
- * L24  /api/resources/:slug/availability  → availability.routes.js
- * L25  /api/bookings                      → bookings.routes.js
- * L26  /api/pricing                       → pricing.routes.js
- * L29  /api/admin/bookings                → admin/bookings.routes.js
- * L30  /api/admin/pricing                 → admin/pricing.routes.js
- * L31  /api/admin                         → admin/index.routes.js (stats, calendar)
- * L34  /api/health                        → health check inline
+ * Règle : routes → controllers → services → Prisma
+ *
+ * Montage sous /api (app.js) :
+ *   /auth                          → auth.routes.js
+ *   /home                          → home.routes.js (vitrine publique)
+ *   /resources                     → resources.routes.js
+ *   /resources/:slug/availability  → availability.routes.js
+ *   /bookings                      → bookings.routes.js
+ *   /pricing                       → pricing.routes.js
+ *   /rental-terms                  → rental-terms.routes.js
+ *   /admin/bookings                → admin/bookings.routes.js
+ *   /admin/pricing                 → admin/pricing.routes.js
+ *   /admin                         → admin/settings.routes.js + admin/index.routes.js
+ *   /health                        → health check inline
  */
 
 const { Router } = require('express');
