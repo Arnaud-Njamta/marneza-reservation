@@ -2433,6 +2433,40 @@ a:hover {
   margin-top: 1rem;
 }
 
+.admin-modal--danger {
+  max-width: 440px;
+}
+
+.admin-delete-modal__text {
+  margin: 0 0 0.75rem;
+  line-height: 1.45;
+  color: var(--marneza-body);
+}
+
+.admin-delete-modal__list {
+  margin: 0 0 0.25rem;
+  padding-left: 1.15rem;
+  color: var(--marneza-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.btn-danger {
+  background: #9b2226;
+  border: 1px solid #9b2226;
+  color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #7a1b1e;
+  border-color: #7a1b1e;
+}
+
+.btn-danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .rte {
   border: 1px solid var(--marneza-border);
   border-radius: 0.35rem;

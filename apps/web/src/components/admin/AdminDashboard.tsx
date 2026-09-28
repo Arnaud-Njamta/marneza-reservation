@@ -70,6 +70,7 @@ export function AdminDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [linkCopiedId, setLinkCopiedId] = useState<string | null>(null);
   const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(
@@ -198,18 +199,14 @@ export function AdminDashboard() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (
-      !confirm(
-        'Supprimer définitivement cette réservation ?\n\nCette action est irréversible (données + preuve de paiement).'
-      )
-    ) {
-      return;
-    }
-    if (!confirm('Confirmez la suppression définitive.')) return;
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
     setActionId(id);
+    setError(null);
     try {
       await adminDeleteBooking(id);
+      setDeleteTarget(null);
       if (editingId === id) setEditingId(null);
       await refreshNow({ silent: true });
     } catch (e) {
@@ -267,6 +264,69 @@ export function AdminDashboard() {
             <button type="button" className="btn btn-primary" onClick={() => setLinkModalUrl(null)}>
               Fermer
             </button>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div
+          className="admin-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-delete-title"
+          onClick={() => actionId !== deleteTarget.id && setDeleteTarget(null)}
+        >
+          <div className="admin-modal admin-modal--danger" onClick={(e) => e.stopPropagation()}>
+            <header className="admin-modal__header">
+              <div>
+                <h2 id="admin-delete-title">Supprimer la réservation</h2>
+                <p className="admin-modal__subtitle">Cette action est définitive</p>
+              </div>
+              <button
+                type="button"
+                className="admin-modal__close"
+                onClick={() => setDeleteTarget(null)}
+                disabled={actionId === deleteTarget.id}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </header>
+            <p className="admin-delete-modal__text">
+              Vous allez supprimer définitivement la réservation{' '}
+              <strong>{deleteTarget.referenceNumber ?? deleteTarget.id.slice(0, 8)}</strong>
+              {' '}de <strong>{guestFullName(deleteTarget)}</strong>
+              {deleteTarget.resource?.name ? (
+                <>
+                  {' '}
+                  ({deleteTarget.resource.name})
+                </>
+              ) : null}
+              .
+            </p>
+            <ul className="admin-delete-modal__list">
+              <li>La réservation disparaît de l’admin et des exports</li>
+              <li>La preuve de paiement associée est effacée</li>
+              <li>Impossible d’annuler cette opération</li>
+            </ul>
+            <footer className="admin-modal__footer">
+              <button
+                type="button"
+                className="btn btn-outline"
+                disabled={actionId === deleteTarget.id}
+                onClick={() => setDeleteTarget(null)}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={actionId === deleteTarget.id}
+                onClick={() => void handleDelete()}
+              >
+                {actionId === deleteTarget.id ? 'Suppression…' : 'Supprimer définitivement'}
+              </button>
+            </footer>
           </div>
         </div>
       )}
@@ -532,7 +592,7 @@ export function AdminDashboard() {
                       type="button"
                       className="btn btn-sm btn-outline admin-btn-delete"
                       disabled={actionId === b.id}
-                      onClick={() => handleDelete(b.id)}
+                      onClick={() => setDeleteTarget(b)}
                     >
                       Supprimer
                     </button>
