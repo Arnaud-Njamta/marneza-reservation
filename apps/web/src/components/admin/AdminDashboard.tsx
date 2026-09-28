@@ -322,7 +322,7 @@ export function AdminDashboard() {
                 </td>
                 <td className="admin-cell--client">
                   <strong>{guestFullName(b)}</strong>
-                  <span className="admin-cell__meta">{b.customer.email}</span>
+                  <span className="admin-cell__meta">{b.guestEmail || b.customer.email}</span>
                   <span className="admin-cell__meta">{customerCategoryLabel(b.customerCategory)}</span>
                   {b.companyName && <span className="admin-cell__meta">{b.companyName}</span>}
                   {b.includesApartment && (

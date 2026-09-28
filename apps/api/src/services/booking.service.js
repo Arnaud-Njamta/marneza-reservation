@@ -177,28 +177,49 @@ async function createPending(data) {
   const expiresAt = new Date(Date.now() + env.bookingHoldMinutes * 60 * 1000);
 
   // ── Étape 8 : rattacher / créer le client (email)
-  // Ne JAMAIS écraser firstName/lastName/phone d'un Customer existant :
-  // plusieurs réservations partagent le même customerId ; un update global
-  // renommait toutes les anciennes réservations. L'identité affichée est
-  // figée sur le booking (guest*).
+  // L'identité AFFICHÉE est figée sur le booking (guest*). On peut mettre à
+  // jour la fiche Customer (CRM / dernier contact) sans renommer l'historique,
+  // car admin/mails lisent guest* en priorité.
+  const guestFirst = String(customerData?.firstName || '').trim();
+  const guestLast = String(customerData?.lastName || '').trim();
+  const guestEmail = String(customerData?.email || '').trim().toLowerCase();
+  const guestPhone = customerData?.phone ? String(customerData.phone).trim() : null;
+
+  if (!guestFirst || !guestLast || !guestEmail) {
+    const err = new Error('Prénom, nom et email sont obligatoires');
+    err.statusCode = 400;
+    throw err;
+  }
+
   let customer = await prisma.customer.findFirst({
-    where: { email: customerData.email },
+    where: { email: guestEmail },
   });
+
+  if (!customer) {
+    // Compat : anciens customers éventuellement stockés avec une autre casse
+    customer = await prisma.customer.findFirst({
+      where: { email: customerData.email },
+    });
+  }
 
   if (!customer) {
     customer = await prisma.customer.create({
       data: {
-        email: customerData.email,
-        phone: customerData.phone || null,
-        firstName: customerData.firstName,
-        lastName: customerData.lastName,
+        email: guestEmail,
+        phone: guestPhone,
+        firstName: guestFirst,
+        lastName: guestLast,
       },
     });
-  } else if (!customer.phone && customerData.phone) {
-    // Compléter le téléphone seulement s'il manquait (sans toucher au nom)
+  } else {
     customer = await prisma.customer.update({
       where: { id: customer.id },
-      data: { phone: customerData.phone },
+      data: {
+        firstName: guestFirst,
+        lastName: guestLast,
+        email: guestEmail,
+        ...(guestPhone ? { phone: guestPhone } : {}),
+      },
     });
   }
 
@@ -208,10 +229,10 @@ async function createPending(data) {
     data: {
       resourceId: resource.id,
       customerId: customer.id,
-      guestFirstName: customerData.firstName,
-      guestLastName: customerData.lastName,
-      guestEmail: customerData.email,
-      guestPhone: customerData.phone || null,
+      guestFirstName: guestFirst,
+      guestLastName: guestLast,
+      guestEmail,
+      guestPhone,
       bookingTypeId: bookingType.id,
       eventType,
       startAt,
