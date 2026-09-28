@@ -304,6 +304,13 @@ export function adminRefuseBooking(id: string) {
   return adminRequest<Booking>(`/api/admin/bookings/${id}/refuse`, { method: 'POST' });
 }
 
+/** @route DELETE /api/admin/bookings/:id — suppression définitive */
+export function adminDeleteBooking(id: string) {
+  return adminRequest<{ id: string; deleted: boolean }>(`/api/admin/bookings/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 /** @route PATCH /api/admin/bookings/:id/status */
 export function adminUpdateBookingStatus(id: string, status: string) {
   return adminRequest<Booking>(`/api/admin/bookings/${id}/status`, {

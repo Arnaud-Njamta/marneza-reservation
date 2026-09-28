@@ -536,6 +536,43 @@ async function refuse(id) {
   });
 }
 
+/**
+ * Suppression définitive (admin) — irréversible.
+ * Efface paiements, sync Odoo, lignes liées, preuve disque, puis la réservation.
+ */
+async function deletePermanently(id) {
+  const booking = await prisma.booking.findUnique({ where: { id } });
+  if (!booking) {
+    const err = new Error('Réservation introuvable');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (booking.paymentProofPath) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const abs = path.join(
+        path.resolve(__dirname, '../../../uploads/payment-proofs'),
+        path.basename(booking.paymentProofPath)
+      );
+      if (fs.existsSync(abs)) fs.unlinkSync(abs);
+    } catch (err) {
+      console.warn('[booking] Impossible de supprimer la preuve disque', id, err?.message || err);
+    }
+  }
+
+  await prisma.$transaction([
+    prisma.payment.deleteMany({ where: { bookingId: id } }),
+    prisma.odooSyncLog.deleteMany({ where: { bookingId: id } }),
+    prisma.bookingFeeLine.deleteMany({ where: { bookingId: id } }),
+    prisma.bookingOptionLine.deleteMany({ where: { bookingId: id } }),
+    prisma.booking.delete({ where: { id } }),
+  ]);
+
+  return { id, deleted: true };
+}
+
 async function updateStatus(id, status) {
   if (!Object.values(BOOKING_STATUSES).includes(status)) {
     const err = new Error('Statut invalide');
@@ -712,6 +749,7 @@ module.exports = {
   claimPaymentByClient,
   confirmPaymentByAdmin,
   refuse,
+  deletePermanently,
   updateStatus,
   updateAmount,
   modifyByAdmin,

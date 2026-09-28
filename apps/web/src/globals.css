@@ -1467,6 +1467,16 @@ a:hover {
   text-align: center;
 }
 
+.admin-btn-delete {
+  color: #9b2226 !important;
+  border-color: #e8b4b4 !important;
+}
+
+.admin-btn-delete:hover:not(:disabled) {
+  background: #fff5f5 !important;
+  border-color: #9b2226 !important;
+}
+
 .admin-price-edit__row {
   display: flex;
   gap: 0.35rem;

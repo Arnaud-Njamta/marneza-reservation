@@ -163,6 +163,18 @@ async function refuseBooking(req, res, next) {
 }
 
 /**
+ * @route DELETE /api/admin/bookings/:id
+ */
+async function deleteBooking(req, res, next) {
+  try {
+    const result = await bookingService.deletePermanently(req.params.id);
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * @route PATCH /api/admin/bookings/:id/status
  * @body status
  */
@@ -526,6 +538,7 @@ module.exports = {
   downloadPaymentProof,
   cancelBooking,
   refuseBooking,
+  deleteBooking,
   updateBookingStatus,
   updateBookingAmount,
   modifyBooking,

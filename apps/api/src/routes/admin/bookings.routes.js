@@ -37,6 +37,7 @@ router.post('/:id/confirm-payment', admin.confirmPayment);
 router.get('/:id/payment-proof', admin.downloadPaymentProof);
 router.post('/:id/cancel', admin.cancelBooking);
 router.post('/:id/refuse', admin.refuseBooking);
+router.delete('/:id', admin.deleteBooking);
 router.patch('/:id/status', admin.updateBookingStatus);
 router.patch('/:id/amount', admin.updateBookingAmount);
 router.patch('/:id', admin.modifyBooking);

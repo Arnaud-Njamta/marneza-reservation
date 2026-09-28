@@ -12,6 +12,7 @@ import { useCallback, useState, Fragment } from 'react';
 import {
   adminCancelBooking,
   adminConfirmPayment,
+  adminDeleteBooking,
   adminGetSecureLink,
   adminRefuseBooking,
   adminSendInvoice,
@@ -192,6 +193,27 @@ export function AdminDashboard() {
       await refreshNow({ silent: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur annulation');
+    } finally {
+      setActionId(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (
+      !confirm(
+        'Supprimer définitivement cette réservation ?\n\nCette action est irréversible (données + preuve de paiement).'
+      )
+    ) {
+      return;
+    }
+    if (!confirm('Confirmez la suppression définitive.')) return;
+    setActionId(id);
+    try {
+      await adminDeleteBooking(id);
+      if (editingId === id) setEditingId(null);
+      await refreshNow({ silent: true });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur suppression');
     } finally {
       setActionId(null);
     }
@@ -506,6 +528,14 @@ export function AdminDashboard() {
                         </button>
                       </>
                     )}
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline admin-btn-delete"
+                      disabled={actionId === b.id}
+                      onClick={() => handleDelete(b.id)}
+                    >
+                      Supprimer
+                    </button>
                   </div>
                 </td>
               </tr>
