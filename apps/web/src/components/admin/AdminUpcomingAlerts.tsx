@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useCallback, useState } from 'react';
 import { adminGetUpcoming } from '@/lib/api-client';
 import type { UpcomingBooking } from '@/types/api';
+import { guestFullName } from '@/lib/guest-identity';
 import { formatDateTime } from './admin-utils';
 import { useAdminAutoRefresh } from './AdminRefreshContext';
 
@@ -43,7 +44,7 @@ export function AdminUpcomingAlerts() {
               <div className="admin-upcoming-card__badge">{meta?.label ?? `J-${b.daysUntil}`}</div>
               <div className="admin-upcoming-card__body">
                 <strong>
-                  {b.customer.firstName} {b.customer.lastName}
+                  {guestFullName(b)}
                 </strong>
                 <span>{b.resource?.name ?? 'Espace'}</span>
                 <span>

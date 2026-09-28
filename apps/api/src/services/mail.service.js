@@ -19,6 +19,11 @@ const { MailtrapClient } = require('mailtrap');
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const { clientBookingUrl } = require('../utils/booking-url');
+const {
+  guestFirstName,
+  guestFullName,
+  guestEmail,
+} = require('../utils/guest-identity');
 
 let transporter;
 let transporterReady;
@@ -181,8 +186,8 @@ async function sendAdminNewBookingEmail(booking) {
     '',
     `Référence : ${bookingRef(booking)}`,
     `Espace : ${booking.resource.name}`,
-    `Client : ${booking.customer.firstName} ${booking.customer.lastName}`,
-    `Email : ${booking.customer.email}`,
+    `Client : ${guestFullName(booking)}`,
+    `Email : ${guestEmail(booking)}`,
     `Période : ${formatBookingPeriod(booking)}`,
     `Montant : ${Number(booking.totalAmount)} ${booking.currency}`,
     booking.notes?.trim() ? `Remarques client : ${booking.notes.trim()}` : null,
@@ -196,7 +201,7 @@ async function sendAdminNewBookingEmail(booking) {
     <p>Le client a accepté les conditions et confirmé sa demande.</p>
     <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>
     <p><strong>Espace :</strong> ${booking.resource.name}</p>
-    <p><strong>Client :</strong> ${booking.customer.firstName} ${booking.customer.lastName} (${booking.customer.email})</p>
+    <p><strong>Client :</strong> ${guestFullName(booking)} (${guestEmail(booking)})</p>
     <p><strong>Période :</strong> ${formatBookingPeriod(booking)}</p>
     <p><strong>Montant :</strong> ${Number(booking.totalAmount)} ${booking.currency}</p>
     ${booking.notes?.trim() ? `<p><strong>Remarques client :</strong> ${booking.notes.trim()}</p>` : ''}
@@ -246,7 +251,7 @@ async function sendClientBookingCreatedEmail(booking) {
   });
   const subject = `Votre réservation Marneza — ${booking.resource.name}`;
   const text = [
-    `Bonjour ${booking.customer.firstName},`,
+    `Bonjour ${guestFirstName(booking)},`,
     '',
     'Votre créneau a été réservé. Voici votre lien personnel pour confirmer votre demande.',
     '',
@@ -263,7 +268,7 @@ async function sendClientBookingCreatedEmail(booking) {
 
   const html = `
     <h2>Réservation enregistrée</h2>
-    <p>Bonjour <strong>${booking.customer.firstName}</strong>,</p>
+    <p>Bonjour <strong>${guestFirstName(booking)}</strong>,</p>
     <p>Votre créneau est réservé. Acceptez les conditions et confirmez votre demande via le lien ci-dessous.</p>
     <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>
     <p><strong>Espace :</strong> ${booking.resource.name}</p>
@@ -271,7 +276,7 @@ async function sendClientBookingCreatedEmail(booking) {
     ${link.html}
   `;
 
-  await sendEmail({ to: booking.customer.email, subject, text, html });
+  await sendEmail({ to: guestEmail(booking), subject, text, html });
 }
 
 /** Email client — demande confirmée (conditions acceptées) */
@@ -279,7 +284,7 @@ async function sendClientSubmitConfirmedEmail(booking) {
   const link = clientLinkBlock(booking);
   const subject = `Demande confirmée — ${booking.resource.name}`;
   const text = [
-    `Bonjour ${booking.customer.firstName},`,
+    `Bonjour ${guestFirstName(booking)},`,
     '',
     'Nous avons bien reçu votre demande de réservation. Notre équipe va l\'examiner.',
     '',
@@ -295,7 +300,7 @@ async function sendClientSubmitConfirmedEmail(booking) {
 
   const html = `
     <h2>Demande confirmée</h2>
-    <p>Bonjour <strong>${booking.customer.firstName}</strong>,</p>
+    <p>Bonjour <strong>${guestFirstName(booking)}</strong>,</p>
     <p>Votre demande est en cours d'examen. Vous recevrez la synthèse de réservation par email dès validation.</p>
     <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>
     <p><strong>Espace :</strong> ${booking.resource.name}</p>
@@ -303,7 +308,7 @@ async function sendClientSubmitConfirmedEmail(booking) {
     ${link.html}
   `;
 
-  await sendEmail({ to: booking.customer.email, subject, text, html });
+  await sendEmail({ to: guestEmail(booking), subject, text, html });
 }
 
 function formatFeeLinesBlock(booking) {
@@ -345,7 +350,7 @@ async function sendClientInvoiceEmail(booking) {
   const tpl = await templateService.getTemplateOrDefault('reservation_summary');
 
   const vars = {
-    firstName: booking.customer.firstName,
+    firstName: guestFirstName(booking),
     resource: booking.resource.name,
     reference: ref,
     period: formatBookingPeriod(booking),
@@ -361,7 +366,7 @@ async function sendClientInvoiceEmail(booking) {
     const rendered = templateService.renderTemplate('reservation_summary', vars, tpl);
     if (rendered) {
       await sendEmail({
-        to: booking.customer.email,
+        to: guestEmail(booking),
         subject: rendered.subject,
         text: rendered.text,
         html: rendered.html,
@@ -372,7 +377,7 @@ async function sendClientInvoiceEmail(booking) {
 
   const subject = `Synthèse de réservation Marneza — ${booking.resource.name} (réf. ${ref})`;
   const text = [
-    `Bonjour ${booking.customer.firstName},`,
+    `Bonjour ${guestFirstName(booking)},`,
     '',
     'Voici la synthèse de votre réservation et les instructions pour régler.',
     '',
@@ -398,7 +403,7 @@ async function sendClientInvoiceEmail(booking) {
 
   const html = `
     <h2>Synthèse de réservation — Marneza</h2>
-    <p>Bonjour <strong>${booking.customer.firstName}</strong>,</p>
+    <p>Bonjour <strong>${guestFirstName(booking)}</strong>,</p>
     <p>Voici le récapitulatif et les instructions de paiement pour votre réservation.</p>
     <table cellpadding="6" style="border-collapse:collapse;">
       <tr><td><strong>Référence</strong></td><td>${ref}</td></tr>
@@ -413,7 +418,7 @@ async function sendClientInvoiceEmail(booking) {
     ${clientLinkBlock(booking).html}
   `;
 
-  await sendEmail({ to: booking.customer.email, subject, text, html });
+  await sendEmail({ to: guestEmail(booking), subject, text, html });
 }
 
 async function sendAdminPaymentClaimedEmail(booking) {
@@ -424,7 +429,7 @@ async function sendAdminPaymentClaimedEmail(booking) {
     hasProof ? 'Une preuve de paiement a été jointe (consultable dans l\'admin).' : '',
     '',
     `Référence : ${bookingRef(booking)}`,
-    `Client : ${booking.customer.firstName} ${booking.customer.lastName} (${booking.customer.email})`,
+    `Client : ${guestFullName(booking)} (${guestEmail(booking)})`,
     `Montant attendu : ${Number(booking.totalAmount)} ${booking.currency}`,
     '',
     `Admin : ${env.appUrl}/admin`,
@@ -437,7 +442,7 @@ async function sendAdminPaymentClaimedEmail(booking) {
     <p>Vérifiez la réception du virement / mobile money, puis confirmez le paiement dans l'administration.</p>
     ${hasProof ? '<p><strong>Preuve de paiement :</strong> jointe — consultez-la dans l\'admin.</p>' : ''}
     <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>
-    <p><strong>Client :</strong> ${booking.customer.email}</p>
+    <p><strong>Client :</strong> ${guestFullName(booking)} (${guestEmail(booking)})</p>
     <p><strong>Montant :</strong> ${Number(booking.totalAmount)} ${booking.currency}</p>
     <p><a href="${env.appUrl}/admin">Confirmer dans l'admin</a></p>
   `;
@@ -450,7 +455,7 @@ async function sendClientPaymentClaimedAckEmail(booking) {
   const link = clientLinkBlock(booking);
   const subject = `Paiement reçu — en cours de vérification — ${booking.resource.name}`;
   const text = [
-    `Bonjour ${booking.customer.firstName},`,
+    `Bonjour ${guestFirstName(booking)},`,
     '',
     'Nous avons bien enregistré votre signalement de paiement.',
     booking.paymentProofPath
@@ -470,7 +475,7 @@ async function sendClientPaymentClaimedAckEmail(booking) {
 
   const html = `
     <h2>Paiement en cours de vérification</h2>
-    <p>Bonjour <strong>${booking.customer.firstName}</strong>,</p>
+    <p>Bonjour <strong>${guestFirstName(booking)}</strong>,</p>
     <p>Nous avons bien enregistré votre signalement de paiement.</p>
     ${
       booking.paymentProofPath
@@ -483,14 +488,14 @@ async function sendClientPaymentClaimedAckEmail(booking) {
     ${link.html}
   `;
 
-  await sendEmail({ to: booking.customer.email, subject, text, html });
+  await sendEmail({ to: guestEmail(booking), subject, text, html });
 }
 
 async function sendClientPaymentConfirmedEmail(booking) {
   const link = clientLinkBlock(booking);
   const subject = `Paiement confirmé — vous avez réglé — ${booking.resource.name}`;
   const text = [
-    `Bonjour ${booking.customer.firstName},`,
+    `Bonjour ${guestFirstName(booking)},`,
     '',
     'Votre paiement a été confirmé. Vous avez bien réglé votre réservation Marneza.',
     '',
@@ -507,7 +512,7 @@ async function sendClientPaymentConfirmedEmail(booking) {
 
   const html = `
     <h2>Paiement confirmé — vous avez réglé</h2>
-    <p>Bonjour <strong>${booking.customer.firstName}</strong>,</p>
+    <p>Bonjour <strong>${guestFirstName(booking)}</strong>,</p>
     <p>Votre paiement a été <strong>confirmé</strong> par notre équipe. Votre réservation est validée.</p>
     <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>
     <p><strong>Espace :</strong> ${booking.resource.name}</p>
@@ -516,7 +521,7 @@ async function sendClientPaymentConfirmedEmail(booking) {
     ${link.html}
   `;
 
-  await sendEmail({ to: booking.customer.email, subject, text, html });
+  await sendEmail({ to: guestEmail(booking), subject, text, html });
 }
 
 const REMINDER_LABELS = {
@@ -535,7 +540,7 @@ async function sendBookingReminderEmails(booking, kind) {
   // Un seul email : au client. L'admin a les alertes dashboard (J-3 / J-1 / jour-J).
   const clientSubject = `${labels.client} — ${booking.resource.name}`;
   const clientText = [
-    `Bonjour ${booking.customer.firstName},`,
+    `Bonjour ${guestFirstName(booking)},`,
     '',
     labels.client,
     '',
@@ -551,7 +556,7 @@ async function sendBookingReminderEmails(booking, kind) {
 
   const clientHtml = `
     <h2>${labels.client}</h2>
-    <p>Bonjour <strong>${booking.customer.firstName}</strong>,</p>
+    <p>Bonjour <strong>${guestFirstName(booking)}</strong>,</p>
     <p>Nous vous rappelons votre réservation confirmée.</p>
     <p><strong>Réf. :</strong> ${bookingRef(booking)}</p>
     <p><strong>Espace :</strong> ${booking.resource.name}</p>
@@ -561,7 +566,7 @@ async function sendBookingReminderEmails(booking, kind) {
   `;
 
   await sendEmail({
-    to: booking.customer.email,
+    to: guestEmail(booking),
     subject: clientSubject,
     text: clientText,
     html: clientHtml,

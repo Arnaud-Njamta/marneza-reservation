@@ -22,6 +22,7 @@ import {
   openAdminPaymentProof,
 } from '@/lib/api-client';
 import type { AdminStats } from '@/types/api';
+import { guestFullName } from '@/lib/guest-identity';
 import {
   customerCategoryLabel,
   eventLabel,
@@ -320,7 +321,7 @@ export function AdminDashboard() {
                   <span className="admin-cell__meta">{eventLabel(b.eventType)}</span>
                 </td>
                 <td className="admin-cell--client">
-                  <strong>{b.customer.firstName} {b.customer.lastName}</strong>
+                  <strong>{guestFullName(b)}</strong>
                   <span className="admin-cell__meta">{b.customer.email}</span>
                   <span className="admin-cell__meta">{customerCategoryLabel(b.customerCategory)}</span>
                   {b.companyName && <span className="admin-cell__meta">{b.companyName}</span>}

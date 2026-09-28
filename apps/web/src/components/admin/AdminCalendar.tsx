@@ -9,6 +9,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { adminGetCalendar } from '@/lib/api-client';
 import type { AdminCalendarData, CalendarBooking } from '@/types/api';
+import { guestFullName } from '@/lib/guest-identity';
 import { eventLabel, formatDateTime, STATUS_LABELS, statusClass } from './admin-utils';
 import { statusLabelShort } from '@/lib/booking-status';
 import { AdminUpcomingAlerts } from './AdminUpcomingAlerts';
@@ -209,7 +210,7 @@ export function AdminCalendar() {
                         <div className="admin-calendar-card__main">
                           <div className="admin-calendar-card__title-row">
                             <strong>
-                              {b.customer?.firstName} {b.customer?.lastName}
+                              {guestFullName(b)}
                             </strong>
                             <span
                               className={`badge badge--status ${statusClass(b.status)}`}

@@ -8,6 +8,7 @@ import {
   adminListSynthesisConfigs,
 } from '@/lib/api-client';
 import type { EmailTemplate, ReminderConfig, SynthesisResult } from '@/types/api';
+import { guestFullName } from '@/lib/guest-identity';
 import { formatDateTime } from './admin-utils';
 import { TemplateEditModal } from './TemplateEditModal';
 import { AdminUpcomingAlerts } from './AdminUpcomingAlerts';
@@ -198,7 +199,7 @@ export function AdminSynthesis() {
                 {synthesis.bookings.map((b) => (
                   <tr key={b.id}>
                     <td><code className="admin-ref">{b.referenceNumber ?? '—'}</code></td>
-                    <td>{b.customer.firstName} {b.customer.lastName}</td>
+                    <td>{guestFullName(b)}</td>
                     <td>{b.resource.name}</td>
                     <td>
                       {formatDateTime(b.startAt)}

@@ -137,6 +137,11 @@ model Booking {
   resource        Resource            @relation(fields: [resourceId], references: [id])
   customerId      String
   customer        Customer            @relation(fields: [customerId], references: [id])
+  // Snapshot identité au moment de la réservation (ne pas écraser via Customer partagé)
+  guestFirstName  String?
+  guestLastName   String?
+  guestEmail      String?
+  guestPhone      String?
   bookingTypeId   String
   bookingType     BookingType         @relation(fields: [bookingTypeId], references: [id])
   eventType       EventType

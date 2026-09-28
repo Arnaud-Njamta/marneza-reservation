@@ -141,6 +141,11 @@ export type Booking = {
   feeLines?: BookingFeeLine[];
   includesApartment?: boolean;
   odooSaleOrderId?: number | null;
+  /** Snapshot identité à la création (prioritaire sur customer pour l'affichage) */
+  guestFirstName?: string | null;
+  guestLastName?: string | null;
+  guestEmail?: string | null;
+  guestPhone?: string | null;
   resource: { name: string; slug: string };
   bookingType: { name: string; code: string; spansOvernight?: boolean };
   customer: {

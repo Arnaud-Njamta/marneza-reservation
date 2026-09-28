@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { Booking, BookingFeeLine } from '@/types/api';
+import { guestFullName } from '@/lib/guest-identity';
 import { adminModifyBooking } from '@/lib/api-client';
 import { formatDateTime } from './admin-utils';
 
@@ -81,7 +82,7 @@ export function BookingEditPanel({ booking, onSaved, onClose }: Props) {
           <div className="admin-edit-panel__header">
             <h3>Modifier la réservation</h3>
             <p>
-              {booking.customer.firstName} {booking.customer.lastName} — {booking.resource.name}
+              {guestFullName(booking)} — {booking.resource.name}
             </p>
             <p className="admin-edit-panel__hint">
               Créneau actuel : {formatDateTime(booking.startAt)} → {formatDateTime(booking.endAt)}

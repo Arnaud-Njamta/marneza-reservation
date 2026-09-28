@@ -6,6 +6,7 @@
 
 const ExcelJS = require('exceljs');
 const prisma = require('../config/database');
+const { guestFullName, guestEmail, guestPhone } = require('../utils/guest-identity');
 
 const STATUS_LABELS = {
   created: 'Créée',
@@ -78,9 +79,9 @@ async function buildBookingsWorkbook({ from, to, status }) {
   for (const b of bookings) {
     ws.addRow({
       reference: b.referenceNumber ?? b.id.slice(0, 8),
-      client: `${b.customer.firstName} ${b.customer.lastName}`,
-      email: b.customer.email,
-      phone: b.customer.phone ?? '',
+      client: guestFullName(b),
+      email: guestEmail(b),
+      phone: guestPhone(b) ?? '',
       space: b.resource.name,
       type: b.bookingType.name,
       category: b.customerCategory === 'entreprise' ? 'Entreprise' : 'Personnel',

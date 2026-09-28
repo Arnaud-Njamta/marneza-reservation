@@ -176,37 +176,42 @@ async function createPending(data) {
   // ── Étape 7 : expiration du hold (BOOKING_HOLD_MINUTES, défaut 15 min) ──
   const expiresAt = new Date(Date.now() + env.bookingHoldMinutes * 60 * 1000);
 
-  // ── Étape 8 : upsert client (email unique) ──
+  // ── Étape 8 : rattacher / créer le client (email)
+  // Ne JAMAIS écraser firstName/lastName/phone d'un Customer existant :
+  // plusieurs réservations partagent le même customerId ; un update global
+  // renommait toutes les anciennes réservations. L'identité affichée est
+  // figée sur le booking (guest*).
   let customer = await prisma.customer.findFirst({
     where: { email: customerData.email },
   });
 
-  if (customer) {
-    customer = await prisma.customer.update({
-      where: { id: customer.id },
-      data: {
-        phone: customerData.phone,
-        firstName: customerData.firstName,
-        lastName: customerData.lastName,
-      },
-    });
-  } else {
+  if (!customer) {
     customer = await prisma.customer.create({
       data: {
         email: customerData.email,
-        phone: customerData.phone,
+        phone: customerData.phone || null,
         firstName: customerData.firstName,
         lastName: customerData.lastName,
       },
     });
+  } else if (!customer.phone && customerData.phone) {
+    // Compléter le téléphone seulement s'il manquait (sans toucher au nom)
+    customer = await prisma.customer.update({
+      where: { id: customer.id },
+      data: { phone: customerData.phone },
+    });
   }
 
-  // ── Étape 9 : INSERT booking + référence + accessToken ──
+  // ── Étape 9 : INSERT booking + snapshot identité + référence + accessToken ──
   const referenceNumber = await generateReferenceNumber();
   const booking = await prisma.booking.create({
     data: {
       resourceId: resource.id,
       customerId: customer.id,
+      guestFirstName: customerData.firstName,
+      guestLastName: customerData.lastName,
+      guestEmail: customerData.email,
+      guestPhone: customerData.phone || null,
       bookingTypeId: bookingType.id,
       eventType,
       startAt,

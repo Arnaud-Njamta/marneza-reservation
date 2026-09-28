@@ -10,6 +10,7 @@
 const prisma = require('../../config/database');
 const env = require('../../config/env');
 const { callOdoo, searchCreate } = require('./odoo.client');
+const { guestFullName, guestEmail, guestPhone } = require('../../utils/guest-identity');
 
 async function syncBookingToOdoo(bookingId) {
   const booking = await prisma.booking.findUnique({
@@ -48,10 +49,10 @@ async function syncBookingToOdoo(bookingId) {
     }
 
     // Phase 2 : créer res.partner + sale.order via JSON-RPC
-    const partnerId = await searchCreate('res.partner', [['email', '=', booking.customer.email]], {
-      name: `${booking.customer.firstName} ${booking.customer.lastName}`,
-      email: booking.customer.email,
-      phone: booking.customer.phone,
+    const partnerId = await searchCreate('res.partner', [['email', '=', guestEmail(booking)]], {
+      name: guestFullName(booking),
+      email: guestEmail(booking),
+      phone: guestPhone(booking),
     });
 
     const orderId = await callOdoo('sale.order', 'create', [
